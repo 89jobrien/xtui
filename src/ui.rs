@@ -6,6 +6,13 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, List, ListItem, ListState, Paragraph, Tabs, Wrap};
 
+/// Left panel (commands) width as percentage of the terminal.
+const CMD_PANEL_PCT: u16 = 25;
+/// Right panel (output) width as percentage of the terminal.
+const OUTPUT_PANEL_PCT: u16 = 75;
+/// Height of the description area in lines.
+const DESC_HEIGHT: u16 = 5;
+
 const ACCENT: Color = Color::Cyan;
 const HIGHLIGHT_FG: Color = Color::Black;
 const HIGHLIGHT_BG: Color = Color::Cyan;
@@ -34,7 +41,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     // Main area: left (tabs + commands) | right (desc + output/status)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
+        .constraints([
+            Constraint::Percentage(CMD_PANEL_PCT),
+            Constraint::Percentage(OUTPUT_PANEL_PCT),
+        ])
         .split(outer[1]);
 
     // Left side: tab bar + command list
@@ -46,7 +56,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     // Right side: description + output/status
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(5), Constraint::Min(1)])
+        .constraints([Constraint::Length(DESC_HEIGHT), Constraint::Min(1)])
         .split(main_chunks[1]);
 
     app.output_height = right_chunks[1].height.saturating_sub(2);

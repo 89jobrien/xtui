@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Maximum number of history entries retained per project.
+pub const HISTORY_ENTRY_CAP: usize = 50;
+/// Maximum number of log files retained per project.
+pub const LOG_FILE_CAP: usize = 100;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
     pub command: String,
@@ -28,8 +33,8 @@ pub fn save_entry(base: &Path, project: &str, entry: &HistoryEntry) -> Result<()
     let file = base.join(format!("{project}.json"));
     let mut entries = load_history(base, project)?;
     entries.push(entry.clone());
-    if entries.len() > 50 {
-        let drop = entries.len() - 50;
+    if entries.len() > HISTORY_ENTRY_CAP {
+        let drop = entries.len() - HISTORY_ENTRY_CAP;
         entries.drain(..drop);
     }
     let json = serde_json::to_string_pretty(&entries)?;
@@ -90,13 +95,13 @@ pub fn prune_logs(base: &Path, project: &str) -> Result<()> {
         .filter(|p| p.is_file())
         .collect();
 
-    if files.len() <= 100 {
+    if files.len() <= LOG_FILE_CAP {
         return Ok(());
     }
 
     // Sort ascending — oldest (smallest name) first.
     files.sort();
-    let to_delete = files.len() - 100;
+    let to_delete = files.len() - LOG_FILE_CAP;
     for path in files.iter().take(to_delete) {
         fs::remove_file(path)?;
     }
@@ -123,6 +128,7 @@ fn utc_timestamp() -> String {
 /// Converts days since the Unix epoch to `(year, month, day)`.
 ///
 /// Uses the algorithm from <https://howardhinnant.github.io/date_algorithms.html>.
+// qual:allow(complexity) reason: "Gregorian calendar algorithm — magic numbers are well-defined algorithm constants"
 fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     let z = days as i64 + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;

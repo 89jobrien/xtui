@@ -16,6 +16,13 @@ use ratatui::crossterm::terminal::{
 use std::io;
 use std::path::PathBuf;
 
+/// Output buffer line limit before trimming oldest lines.
+const OUTPUT_LINE_LIMIT: usize = 10_000;
+/// Number of lines trimmed when the output buffer exceeds `OUTPUT_LINE_LIMIT`.
+const OUTPUT_TRIM_SIZE: usize = 1_000;
+/// Event poll interval in milliseconds.
+const EVENT_POLL_MS: u64 = 50;
+
 fn base64_encode(input: &[u8]) -> String {
     use std::fmt::Write;
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -53,6 +60,7 @@ pub struct SourceTab {
     pub commands: Vec<SourceCommand>,
 }
 
+// qual:allow(coupling) reason: "app↔ui cycle is intentional TUI pattern — App owns state, ui renders it; decoupling would require a separate state type"
 pub struct App {
     pub workspace: PathBuf,
     pub sources: Vec<Box<dyn CommandSource>>,
@@ -217,8 +225,8 @@ impl App {
         if let Some(ref mut task) = self.task {
             let prev_len = self.output.len();
             task.poll_lines(&mut self.output);
-            if self.output.len() > 10_000 {
-                self.output.drain(..1000);
+            if self.output.len() > OUTPUT_LINE_LIMIT {
+                self.output.drain(..OUTPUT_TRIM_SIZE);
             }
             if self.output.len() != prev_len && self.focus == Focus::Commands {
                 let max = (self.output.len() as u16).saturating_sub(self.output_height);
@@ -399,7 +407,7 @@ impl App {
             self.poll_output();
             self.advance_pipeline().await?;
 
-            if event::poll(std::time::Duration::from_millis(50))?
+            if event::poll(std::time::Duration::from_millis(EVENT_POLL_MS))?
                 && let Event::Key(key) = event::read()?
             {
                 if key.kind != KeyEventKind::Press {

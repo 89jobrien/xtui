@@ -8,6 +8,7 @@ pub struct SearchState {
 }
 
 impl SearchState {
+    /// Test-only constructor. Production code builds `SearchState` via `from_input()`.
     #[cfg(test)]
     pub fn new(query: &str) -> Self {
         Self {

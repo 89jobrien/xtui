@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::discover::parse_source;
 
 /// A command discovered from a project's xtask or similar source.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceCommand {
     pub name: String,
     pub description: Option<String>,
@@ -67,6 +67,7 @@ impl CommandSource for CargoSource {
         "cargo"
     }
 
+    // qual:allow(iosp,dry) reason: "I/O boundary — filesystem check + TOML read + data construction are inseparable; inline struct construction is intentional"
     fn discover(&self, project: &Path) -> Result<Vec<SourceCommand>> {
         if !project.join("Cargo.toml").exists() {
             return Ok(vec![]);
@@ -260,6 +261,7 @@ impl CommandSource for MiseSource {
         "mise"
     }
 
+    // qual:allow(iosp) reason: "I/O boundary — config file detection + TOML parse + data construction are inseparable"
     fn discover(&self, project: &Path) -> Result<Vec<SourceCommand>> {
         let mise_path = if project.join("mise.toml").exists() {
             project.join("mise.toml")

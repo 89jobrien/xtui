@@ -1,14 +1,12 @@
 mod app;
 mod ui;
 
-// Re-export lib modules so app.rs/ui.rs can use crate::module paths.
+// Re-export lib modules so app.rs can use `crate::module` paths.
+// Only modules directly referenced in app.rs/ui.rs are listed here;
+// discover and registry are used internally by the lib and need no re-export.
 use xtui as xtui_lib;
-#[allow(unused_imports)]
-pub(crate) use xtui_lib::discover;
 pub(crate) use xtui_lib::history;
 pub(crate) use xtui_lib::pipeline;
-#[allow(unused_imports)]
-pub(crate) use xtui_lib::registry;
 pub(crate) use xtui_lib::runner;
 pub(crate) use xtui_lib::search;
 pub(crate) use xtui_lib::source;

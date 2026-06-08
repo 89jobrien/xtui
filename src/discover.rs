@@ -7,6 +7,7 @@ pub struct XtaskCommand {
     pub description: Option<String>,
 }
 
+// qual:allow(complexity) reason: "Regex::new().unwrap() on constant patterns is infallible"
 pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
     let desc_map = extract_descriptions(source);
 
@@ -38,7 +39,9 @@ pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
             .captures_iter(body)
             .map(|c| c[1].to_string())
             .collect();
-        // For dispatch_ functions, also collect bare "name" => patterns
+        // For dispatch_ functions, fall back to bare "name" => patterns (e.g. minibox-style).
+        // Only triggered when no Some("...") arms were found — mixed arm styles in a single
+        // dispatch function are not supported and bare arms would be silently dropped.
         if name.starts_with("dispatch_") && cmds.is_empty() {
             cmds = bare_re
                 .captures_iter(body)

@@ -81,11 +81,12 @@ impl Pipeline {
         self.steps.len()
     }
 
-    #[cfg(test)]
     /// Parse a `:chain name1 name2 …` command string.
     ///
     /// Returns `None` if the input does not start with `:chain` or contains no
     /// command names after the prefix.
+    // qual:allow(iosp) reason: "Constructor + parsing guard — splitting would add no value"
+    #[cfg(test)]
     pub fn parse(input: &str) -> Option<Self> {
         let rest = input.strip_prefix(":chain")?;
         let names: Vec<&str> = rest.split_whitespace().collect();
