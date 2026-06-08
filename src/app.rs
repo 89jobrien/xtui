@@ -540,4 +540,115 @@ mod tests {
         // At minimum: 4 cargo commands + some xtask commands
         assert!(total >= 4);
     }
+
+    #[test]
+    fn test_switch_tab_by_index() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        if app.tabs.len() >= 2 {
+            app.switch_tab(1);
+            assert_eq!(app.active_tab, 1);
+            assert_eq!(app.selected, 0);
+            // Out-of-bounds index is a no-op
+            app.switch_tab(999);
+            assert_eq!(app.active_tab, 1);
+        }
+    }
+
+    #[test]
+    fn test_sources_grouped_by_tab() {
+        let app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        // Each tab should have a unique source name
+        let names: Vec<&str> = app.tabs.iter().map(|t| t.name.as_str()).collect();
+        let mut deduped = names.clone();
+        deduped.sort();
+        deduped.dedup();
+        assert_eq!(names.len(), deduped.len(), "duplicate tab names: {names:?}");
+        // xtui has Cargo.toml so cargo tab must exist
+        assert!(names.contains(&"cargo"), "missing cargo tab in {names:?}");
+    }
+
+    #[test]
+    fn test_selected_command_returns_correct_source() {
+        let app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        if let Some(cmd) = app.selected_command() {
+            let tab_name = &app.tabs[app.active_tab].name;
+            assert_eq!(&cmd.source, tab_name);
+        }
+    }
+
+    #[test]
+    fn test_scroll_bounds() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        app.output_height = 10;
+        // No output — scroll should stay at 0
+        app.scroll_output_down();
+        assert_eq!(app.output_scroll, 0);
+        // Add output exceeding height
+        app.output = (0..25).map(|i| format!("line {i}")).collect();
+        app.scroll_output_to_bottom();
+        assert_eq!(app.output_scroll, 15); // 25 - 10
+        app.scroll_output_up();
+        assert_eq!(app.output_scroll, 14);
+        // Scroll up past 0 saturates
+        app.output_scroll = 0;
+        app.scroll_output_up();
+        assert_eq!(app.output_scroll, 0);
+    }
+
+    #[test]
+    fn test_search_integration() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        app.output = vec!["hello world".into(), "foo bar".into(), "hello again".into()];
+        app.start_search();
+        assert!(app.search.is_some());
+        assert_eq!(app.focus, Focus::Output);
+        // Type query
+        app.handle_search_input(KeyCode::Char('h'));
+        app.handle_search_input(KeyCode::Char('e'));
+        app.handle_search_input(KeyCode::Char('l'));
+        app.handle_search_input(KeyCode::Enter);
+        let search = app.search.as_ref().unwrap();
+        assert_eq!(search.match_count(), 2);
+        // Cycling
+        app.search_next();
+        assert_eq!(app.output_scroll, 2);
+        app.search_prev();
+        assert_eq!(app.output_scroll, 0);
+    }
+
+    #[test]
+    fn test_pipeline_construction() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        assert!(!app.current_commands().is_empty());
+        app.start_pipeline_from_selected();
+        assert!(app.pipeline.is_some());
+        let pipe = app.pipeline.as_ref().unwrap();
+        assert_eq!(pipe.step_count(), app.current_commands().len());
+    }
+
+    #[test]
+    fn test_focus_toggle() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        assert_eq!(app.focus, Focus::Commands);
+        app.focus = Focus::Output;
+        assert_eq!(app.focus, Focus::Output);
+    }
+
+    #[test]
+    fn test_flash_message() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        assert!(app.flash_message.is_none());
+        app.flash_message = Some(("test".into(), std::time::Instant::now()));
+        assert!(app.flash_message.is_some());
+    }
+
+    #[test]
+    fn test_refresh_commands_preserves_structure() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        let tab_count = app.tabs.len();
+        let total = app.total_command_count();
+        app.refresh_commands();
+        assert_eq!(app.tabs.len(), tab_count);
+        assert_eq!(app.total_command_count(), total);
+    }
 }
