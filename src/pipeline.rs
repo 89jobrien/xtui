@@ -81,6 +81,7 @@ impl Pipeline {
         self.steps.len()
     }
 
+    #[cfg(test)]
     /// Parse a `:chain name1 name2 …` command string.
     ///
     /// Returns `None` if the input does not start with `:chain` or contains no

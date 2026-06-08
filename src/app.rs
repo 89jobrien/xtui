@@ -1,5 +1,5 @@
 use crate::history::{self, HistoryEntry};
-use crate::pipeline::{Pipeline, PipelineStatus, PipelineStep};
+use crate::pipeline::{Pipeline, PipelineStep};
 use crate::runner::{self, RunningTask};
 use crate::search::SearchState;
 use crate::source::{CommandSource, SourceCommand, all_sources};
@@ -255,6 +255,7 @@ impl App {
             let base = history::history_dir();
             let _ = history::save_entry(&base, &project_name, &entry);
             let _ = history::save_output(&base, &project_name, &cmd.name, &self.output);
+            let _ = history::prune_logs(&base, &project_name);
         }
         self.run_start = None;
 

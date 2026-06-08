@@ -79,19 +79,10 @@ pub async fn spawn_command(program: &str, args: &[&str], cwd: &Path) -> Result<R
 pub async fn run_xtask(workspace: &Path, command: &str) -> Result<RunningTask> {
     let manifest = workspace.join("xtask/Cargo.toml");
     let manifest_str = manifest.to_string_lossy().to_string();
-    spawn_command(
-        "cargo",
-        &[
-            "run",
-            "--quiet",
-            "--manifest-path",
-            &manifest_str,
-            "--",
-            command,
-        ],
-        workspace,
-    )
-    .await
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    let mut args = vec!["run", "--quiet", "--manifest-path", &manifest_str, "--"];
+    args.extend(parts);
+    spawn_command("cargo", &args, workspace).await
 }
 
 pub async fn run_source_command(

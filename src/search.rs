@@ -8,7 +8,7 @@ pub struct SearchState {
 }
 
 impl SearchState {
-    /// Create a new active search with a fixed query.
+    #[cfg(test)]
     pub fn new(query: &str) -> Self {
         Self {
             query: query.to_string(),
@@ -68,15 +68,6 @@ impl SearchState {
     /// Return the current match's line index without advancing.
     pub fn current_line(&self) -> Option<usize> {
         self.matches.get(self.current).copied()
-    }
-
-    /// Reset all search state.
-    pub fn clear(&mut self) {
-        self.query.clear();
-        self.matches.clear();
-        self.current = 0;
-        self.active = false;
-        self.input_buffer.clear();
     }
 
     /// Return the number of matches.

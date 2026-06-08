@@ -1,6 +1,5 @@
-use anyhow::Result;
 use regex::Regex;
-use std::path::Path;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct XtaskCommand {
@@ -9,42 +8,102 @@ pub struct XtaskCommand {
 }
 
 pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
-    // Extract command names from match arms like Some("name")
-    let re = Regex::new(r#"Some\("([^"]+)"\)"#).unwrap();
-    let names: Vec<String> = re
+    let desc_map = extract_descriptions(source);
+
+    // Find all functions and their match arms with Some("name") patterns.
+    // We detect which top-level commands delegate to sub-dispatch functions
+    // by looking for functions called from the main match (e.g. cmd_test)
+    // that themselves contain match blocks with Some("subcommand").
+    let some_re = Regex::new(r#"Some\("([^"]+)"\)"#).unwrap();
+
+    // Split source into function blocks (fn name ... { ... })
+    let fn_re = Regex::new(r"(?m)^fn\s+(\w+)").unwrap();
+    let fn_starts: Vec<(usize, &str)> = fn_re
         .captures_iter(source)
-        .map(|caps| caps[1].to_string())
+        .map(|c| (c.get(0).unwrap().start(), c.get(1).unwrap().as_str()))
         .collect();
 
-    // Try to find descriptions from help/usage print lines like:
-    //   eprintln!("    name         Description text");
-    let help_re =
-        Regex::new(r#"(?:println!|eprintln!)\(\s*"\\?\s{2,}(\S+)\s{2,}(.+?)\\?"\s*\)"#).unwrap();
-    let mut desc_map = std::collections::HashMap::new();
-    for caps in help_re.captures_iter(source) {
-        desc_map.insert(caps[1].to_string(), caps[2].trim().to_string());
+    // Build map: function_name -> list of Some("...") values in that function
+    let mut fn_commands: HashMap<&str, Vec<String>> = HashMap::new();
+    for (i, &(start, name)) in fn_starts.iter().enumerate() {
+        let end = fn_starts
+            .get(i + 1)
+            .map(|(s, _)| *s)
+            .unwrap_or(source.len());
+        let body = &source[start..end];
+        let cmds: Vec<String> = some_re
+            .captures_iter(body)
+            .map(|c| c[1].to_string())
+            .collect();
+        fn_commands.insert(name, cmds);
     }
 
-    names
-        .into_iter()
-        .map(|name| {
-            let description = desc_map.get(&name).cloned();
-            XtaskCommand { name, description }
-        })
-        .collect()
-}
+    // Identify the main function's commands
+    let main_cmds = fn_commands.get("main").cloned().unwrap_or_default();
 
-pub async fn discover_commands(workspace: &Path) -> Result<Vec<XtaskCommand>> {
-    let main_path = workspace.join("xtask/src/main.rs");
-    if main_path.exists() {
-        let source = tokio::fs::read_to_string(&main_path).await?;
-        let cmds = parse_source(&source);
-        if !cmds.is_empty() {
-            return Ok(cmds);
+    // For each main command, check if there's a dispatch function (cmd_<name> or dispatch_<name>)
+    // that has its own subcommands
+    let mut commands = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for name in &main_cmds {
+        let dispatch_fn = format!("dispatch_{name}");
+        let cmd_fn = format!("cmd_{name}");
+
+        // Check dispatch function first, then cmd function for sub-commands
+        let sub_cmds = fn_commands
+            .get(dispatch_fn.as_str())
+            .or_else(|| fn_commands.get(cmd_fn.as_str()));
+
+        if let Some(subs) = sub_cmds {
+            if !subs.is_empty() {
+                // This is a group command — emit subcommands as "group sub"
+                for sub in subs {
+                    let full_name = format!("{name} {sub}");
+                    if seen.insert(full_name.clone()) {
+                        let desc = desc_map
+                            .get(&full_name)
+                            .or_else(|| desc_map.get(sub.as_str()))
+                            .cloned();
+                        commands.push(XtaskCommand {
+                            name: full_name,
+                            description: desc,
+                        });
+                    }
+                }
+                continue;
+            }
+        }
+
+        // Top-level command (no sub-dispatch)
+        if seen.insert(name.clone()) {
+            let desc = desc_map.get(name.as_str()).cloned();
+            commands.push(XtaskCommand {
+                name: name.clone(),
+                description: desc,
+            });
         }
     }
 
-    Ok(vec![])
+    commands
+}
+
+/// Extract descriptions from help/usage eprintln!/println! lines.
+///
+/// Matches patterns like:
+///   eprintln!("  name         Description text");
+///   eprintln!("  name sub     Description text");
+fn extract_descriptions(source: &str) -> HashMap<String, String> {
+    let help_re =
+        Regex::new(r#"(?:println!|eprintln!)\(\s*"\\?\s{2,}(\S+(?:\s+\S+)?)\s{2,}(.+?)\\?"\s*\)"#)
+            .unwrap();
+    let mut map = HashMap::new();
+    for caps in help_re.captures_iter(source) {
+        let key = caps[1].trim().to_string();
+        let desc = caps[2].trim().to_string();
+        map.insert(key, desc);
+    }
+    map
 }
 
 #[cfg(test)]
@@ -52,38 +111,126 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_source_fallback() {
+    fn test_parse_source_flat() {
         let source = r#"
-            match cmd.as_deref() {
-                Some("verify") => verify(),
-                Some("lint") => lint(),
-                _ => usage(),
-            }
+fn main() {
+    match cmd.as_deref() {
+        Some("verify") => verify(),
+        Some("lint") => lint(),
+        _ => usage(),
+    }
+}
         "#;
         let cmds = parse_source(source);
         assert_eq!(cmds.len(), 2);
         assert_eq!(cmds[0].name, "verify");
-        assert_eq!(cmds[0].description, None);
+        assert_eq!(cmds[1].name, "lint");
     }
 
     #[test]
     fn test_parse_source_with_descriptions() {
         let source = r#"
-            match task.as_deref() {
-                Some("check") => cargo(&["check"]),
-                Some("test") => cargo(&["test"]),
-                _ => {
-                    eprintln!("    check        Run cargo check");
-                    eprintln!("    test         Run cargo test");
-                }
-            }
+fn main() {
+    match task.as_deref() {
+        Some("check") => cargo(&["check"]),
+        Some("test") => cargo(&["test"]),
+        _ => {
+            eprintln!("    check        Run cargo check");
+            eprintln!("    test         Run cargo test");
+        }
+    }
+}
         "#;
         let cmds = parse_source(source);
         assert_eq!(cmds.len(), 2);
         assert_eq!(cmds[0].name, "check");
         assert_eq!(cmds[0].description, Some("Run cargo check".to_string()));
-        assert_eq!(cmds[1].name, "test");
-        assert_eq!(cmds[1].description, Some("Run cargo test".to_string()));
+    }
+
+    #[test]
+    fn test_parse_nested_subcommands() {
+        let source = r#"
+fn main() {
+    match task.as_deref() {
+        Some("test") => cmd_test(),
+        Some("verify") => verify(),
+        _ => help(),
+    }
+}
+
+fn cmd_test() {
+    match suite.as_deref() {
+        Some(s) => dispatch_test(s),
+        None => {
+            eprintln!("  unit              unit tests");
+            eprintln!("  integration       integration tests");
+        }
+    }
+}
+
+fn dispatch_test(suite: &str) {
+    match suite {
+        Some("unit") => test_unit(),
+        Some("integration") => test_integration(),
+        other => bail!("unknown"),
+    }
+}
+        "#;
+        let cmds = parse_source(source);
+        let names: Vec<&str> = cmds.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"test unit"), "got: {names:?}");
+        assert!(names.contains(&"test integration"), "got: {names:?}");
+        assert!(names.contains(&"verify"), "got: {names:?}");
+        // "test" itself should NOT appear as a standalone command
+        assert!(!names.contains(&"test"), "got: {names:?}");
+    }
+
+    #[test]
+    fn test_nested_descriptions_from_dispatch() {
+        let source = r#"
+fn main() {
+    match task.as_deref() {
+        Some("check") => cmd_check(),
+        _ => {}
+    }
+}
+
+fn cmd_check() {
+    match sub.as_deref() {
+        Some(s) => dispatch_check(s),
+        None => {
+            eprintln!("  stale-names        audit old names");
+            eprintln!("  no-unwrap          scan for unwrap");
+        }
+    }
+}
+
+fn dispatch_check(sub: &str) {
+    match sub {
+        Some("stale-names") => check_stale(),
+        Some("no-unwrap") => check_unwrap(),
+        _ => {}
+    }
+}
+        "#;
+        let cmds = parse_source(source);
+        let stale = cmds.iter().find(|c| c.name == "check stale-names").unwrap();
+        assert_eq!(stale.description.as_deref(), Some("audit old names"));
+    }
+
+    #[test]
+    fn test_no_duplicates() {
+        let source = r#"
+fn main() {
+    match task.as_deref() {
+        Some("build") => build(),
+        Some("build") => build(),
+        _ => {}
+    }
+}
+        "#;
+        let cmds = parse_source(source);
+        assert_eq!(cmds.len(), 1);
     }
 }
 

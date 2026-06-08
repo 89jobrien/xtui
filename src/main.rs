@@ -2,6 +2,7 @@ mod app;
 mod discover;
 mod history;
 mod pipeline;
+#[allow(dead_code)]
 mod registry;
 mod runner;
 mod search;
