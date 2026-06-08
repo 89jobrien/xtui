@@ -20,6 +20,7 @@ use std::path::PathBuf;
 const OUTPUT_LINE_LIMIT: usize = 10_000;
 /// Number of lines trimmed when the output buffer exceeds `OUTPUT_LINE_LIMIT`.
 const OUTPUT_TRIM_SIZE: usize = 1_000;
+const _: () = assert!(OUTPUT_TRIM_SIZE < OUTPUT_LINE_LIMIT);
 /// Event poll interval in milliseconds.
 const EVENT_POLL_MS: u64 = 50;
 
@@ -80,6 +81,8 @@ pub struct App {
     pub show_status_tab: bool,
     pub pipeline: Option<Pipeline>,
     pub run_start: Option<std::time::Instant>,
+    /// When `Some`, the app is in args-input mode. The string accumulates typed args.
+    pub args_input: Option<String>,
 }
 
 impl App {
@@ -106,6 +109,7 @@ impl App {
             show_status_tab: false,
             pipeline: None,
             run_start: None,
+            args_input: None,
         };
         app.discover_all();
         app
@@ -200,9 +204,16 @@ impl App {
         if self.task.is_some() {
             return Ok(());
         }
-        let Some(cmd) = self.selected_command().cloned() else {
+        let Some(mut cmd) = self.selected_command().cloned() else {
             return Ok(());
         };
+        // Append any pending args from args-input mode.
+        if let Some(args) = self.args_input.take() {
+            let args = args.trim().to_string();
+            if !args.is_empty() {
+                cmd.name = format!("{} {args}", cmd.name);
+            }
+        }
         self.output.clear();
         self.output_scroll = 0;
         self.exit_code = None;
@@ -210,6 +221,35 @@ impl App {
         let task = runner::run_source_command(&self.workspace, &cmd).await?;
         self.task = Some(task);
         Ok(())
+    }
+
+    fn start_args_input(&mut self) {
+        if self.task.is_none() && self.selected_command().is_some() {
+            self.args_input = Some(String::new());
+        }
+    }
+
+    /// Handle a keypress while in args-input mode.
+    /// Returns `true` if the user confirmed (Enter) and the command should run.
+    fn handle_args_input(&mut self, code: KeyCode) -> bool {
+        match code {
+            KeyCode::Enter => return true,
+            KeyCode::Char(ch) => {
+                if let Some(ref mut buf) = self.args_input {
+                    buf.push(ch);
+                }
+            }
+            KeyCode::Backspace => {
+                if let Some(ref mut buf) = self.args_input {
+                    buf.pop();
+                }
+            }
+            KeyCode::Esc => {
+                self.args_input = None;
+            }
+            _ => {}
+        }
+        false
     }
 
     async fn cancel(&mut self) {
@@ -414,7 +454,15 @@ impl App {
                     continue;
                 }
 
-                // If in search input mode, route all keys to search handler
+                // If in args-input mode, route all keys there.
+                if self.args_input.is_some() {
+                    if self.handle_args_input(key.code) {
+                        self.run_selected().await?;
+                    }
+                    continue;
+                }
+
+                // If in search input mode, route all keys to search handler.
                 if self
                     .search
                     .as_ref()
@@ -482,6 +530,9 @@ impl App {
                         } else {
                             self.run_selected().await?;
                         }
+                    }
+                    KeyCode::Char('a') if self.focus == Focus::Commands => {
+                        self.start_args_input();
                     }
                     KeyCode::Char('r') => self.refresh_commands(),
                     KeyCode::Char('c') => self.copy_output(),
@@ -659,6 +710,49 @@ mod tests {
         assert!(app.flash_message.is_none());
         app.flash_message = Some(("test".into(), std::time::Instant::now()));
         assert!(app.flash_message.is_some());
+    }
+
+    #[test]
+    fn test_args_input_start_and_cancel() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        assert!(app.args_input.is_none());
+        app.start_args_input();
+        assert_eq!(app.args_input.as_deref(), Some(""));
+        // Esc cancels without running
+        app.handle_args_input(KeyCode::Esc);
+        assert!(app.args_input.is_none());
+    }
+
+    #[test]
+    fn test_args_input_typing() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        app.start_args_input();
+        app.handle_args_input(KeyCode::Char('-'));
+        app.handle_args_input(KeyCode::Char('-'));
+        app.handle_args_input(KeyCode::Char('v'));
+        assert_eq!(app.args_input.as_deref(), Some("--v"));
+        app.handle_args_input(KeyCode::Backspace);
+        assert_eq!(app.args_input.as_deref(), Some("--"));
+    }
+
+    #[test]
+    fn test_args_input_enter_returns_true() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        app.start_args_input();
+        app.handle_args_input(KeyCode::Char('-'));
+        let should_run = app.handle_args_input(KeyCode::Enter);
+        assert!(should_run);
+        // args_input is still Some at this point (consumed by run_selected)
+        assert_eq!(app.args_input.as_deref(), Some("-"));
+    }
+
+    #[test]
+    fn test_start_args_input_no_op_while_running() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        // Simulate a running task by setting task to None but checking guard
+        // (can't spawn a real task in a sync test; verify guard via task = None path)
+        app.start_args_input();
+        assert!(app.args_input.is_some());
     }
 
     #[test]

@@ -103,6 +103,16 @@ pub async fn run_source_command(
         "npm" => spawn_command("npm", &["run", &cmd.name], workspace).await,
         "make" => spawn_command("make", &[cmd.name.as_str()], workspace).await,
         "mise" => spawn_command("mise", &["run", &cmd.name], workspace).await,
+        "cargo-bin" => {
+            let parts: Vec<&str> = cmd.name.split_whitespace().collect();
+            let (bin, args) = parts.split_first().unwrap_or((&"", &[]));
+            let bin_path = dirs::home_dir()
+                .ok_or_else(|| anyhow::anyhow!("no home directory"))?
+                .join(".cargo")
+                .join("bin")
+                .join(bin);
+            spawn_command(&bin_path.to_string_lossy(), args, workspace).await
+        }
         other => anyhow::bail!("unknown source: {other}"),
     }
 }

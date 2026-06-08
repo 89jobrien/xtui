@@ -28,6 +28,7 @@ pub fn all_sources() -> Vec<Box<dyn CommandSource>> {
         Box::new(NpmSource),
         Box::new(MakeSource),
         Box::new(MiseSource),
+        Box::new(CargoBinSource),
     ]
 }
 
@@ -299,6 +300,57 @@ impl CommandSource for MiseSource {
     }
 }
 
+// ── CargoBinSource ───────────────────────────────────────────────────────────
+
+/// Discovers executables installed in `~/.cargo/bin/`.
+///
+/// The project path is ignored — this source is global, not project-scoped.
+pub struct CargoBinSource;
+
+impl CommandSource for CargoBinSource {
+    fn name(&self) -> &str {
+        "cargo-bin"
+    }
+
+    fn discover(&self, _project: &Path) -> Result<Vec<SourceCommand>> {
+        let bin_dir = match dirs::home_dir() {
+            Some(h) => h.join(".cargo").join("bin"),
+            None => return Ok(vec![]),
+        };
+        if !bin_dir.is_dir() {
+            return Ok(vec![]);
+        }
+
+        let mut cmds = Vec::new();
+        for entry in std::fs::read_dir(&bin_dir)?.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if entry
+                    .metadata()
+                    .map(|m| m.permissions().mode() & 0o111 == 0)
+                    .unwrap_or(true)
+                {
+                    continue;
+                }
+            }
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                cmds.push(SourceCommand {
+                    name: name.to_string(),
+                    description: Some(path.to_string_lossy().into_owned()),
+                    source: "cargo-bin".to_string(),
+                });
+            }
+        }
+        cmds.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(cmds)
+    }
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -452,7 +504,25 @@ run = "cargo fmt"
     }
 
     #[test]
-    fn all_sources_returns_seven() {
-        assert_eq!(all_sources().len(), 7);
+    fn all_sources_returns_eight() {
+        assert_eq!(all_sources().len(), 8);
+    }
+
+    #[test]
+    fn cargo_bin_source_name() {
+        assert_eq!(CargoBinSource.name(), "cargo-bin");
+    }
+
+    #[test]
+    fn cargo_bin_source_returns_executables() {
+        // Always succeeds — may be empty if ~/.cargo/bin doesn't exist,
+        // but must not panic or error.
+        let cmds = CargoBinSource
+            .discover(std::path::Path::new("/tmp"))
+            .unwrap();
+        for cmd in &cmds {
+            assert_eq!(cmd.source, "cargo-bin");
+            assert!(!cmd.name.is_empty());
+        }
     }
 }

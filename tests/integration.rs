@@ -27,7 +27,11 @@ fn all_sources_discover_fixture() {
     assert!(found.contains(&"make"), "missing make in {found:?}");
     assert!(found.contains(&"mise"), "missing mise in {found:?}");
     assert!(found.contains(&"nu"), "missing nu in {found:?}");
-    assert_eq!(found.len(), 6);
+    assert!(
+        found.contains(&"cargo-bin"),
+        "missing cargo-bin in {found:?}"
+    );
+    assert_eq!(found.len(), 7);
 }
 
 #[test]
@@ -37,22 +41,35 @@ fn mixed_project_some_sources_missing() {
         .with_justfile("build:\n  echo ok");
 
     let sources = all_sources();
-    let count = sources
+    let found: Vec<&str> = sources
         .iter()
         .filter(|s| !s.discover(fix.path()).unwrap().is_empty())
-        .count();
-    assert_eq!(count, 2); // cargo + just
+        .map(|s| s.name())
+        .collect();
+    assert!(found.contains(&"cargo"), "missing cargo in {found:?}");
+    assert!(found.contains(&"just"), "missing just in {found:?}");
+    // cargo-bin is global — present whenever ~/.cargo/bin exists
+    let has_cargo_bin = dirs::home_dir()
+        .map(|h| h.join(".cargo/bin").is_dir())
+        .unwrap_or(false);
+    let project_count = 2;
+    let expected = project_count + if has_cargo_bin { 1 } else { 0 };
+    assert_eq!(found.len(), expected, "found: {found:?}");
 }
 
 #[test]
-fn empty_project_no_tabs() {
+fn empty_project_only_global_sources() {
+    // An "empty" project has no project-specific commands but the global
+    // cargo-bin source may still contribute.
     let fix = ProjectFixture::new();
     let sources = all_sources();
-    let count = sources
+    let found: Vec<&str> = sources
         .iter()
         .filter(|s| !s.discover(fix.path()).unwrap().is_empty())
-        .count();
-    assert_eq!(count, 0);
+        .map(|s| s.name())
+        .collect();
+    let project_sources = found.iter().filter(|&&n| n != "cargo-bin").count();
+    assert_eq!(project_sources, 0, "unexpected project sources: {found:?}");
 }
 
 #[test]

@@ -314,6 +314,18 @@ fn draw_status_tab(frame: &mut Frame, app: &App, area: Rect, focused: bool) {
 }
 
 fn draw_bottom_status(frame: &mut Frame, app: &App, area: Rect) {
+    // Args-input mode overrides the normal status bar.
+    if let Some(ref buf) = app.args_input {
+        let cmd_name = app
+            .selected_command()
+            .map(|c| c.name.as_str())
+            .unwrap_or("");
+        let text = format!(" args> {cmd_name} {buf}_");
+        let bar = Paragraph::new(text).style(Style::default().fg(Color::Black).bg(Color::Cyan));
+        frame.render_widget(bar, area);
+        return;
+    }
+
     let state = if app.task.is_some() {
         "running".to_string()
     } else if let Some(code) = app.exit_code {
@@ -333,7 +345,7 @@ fn draw_bottom_status(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let focus_hint = match app.focus {
-        Focus::Commands => "Tab:source  1-9:tab  Enter:run  /:search  s:status  P:pipeline",
+        Focus::Commands => "Tab:source  1-9:tab  Enter:run  a:args  /:search  s:status  P:pipeline",
         Focus::Output => "j/k:scroll  g/G:top/bottom  n/N:search  Esc:back",
     };
 
