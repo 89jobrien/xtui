@@ -14,7 +14,9 @@ pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
     // We detect which top-level commands delegate to sub-dispatch functions
     // by looking for functions called from the main match (e.g. cmd_test)
     // that themselves contain match blocks with Some("subcommand").
+    // Match both Some("name") and bare "name" => in match arms
     let some_re = Regex::new(r#"Some\("([^"]+)"\)"#).unwrap();
+    let bare_re = Regex::new(r#"(?m)^\s+"([a-z][a-z0-9_-]*)""#).unwrap();
 
     // Split source into function blocks (fn name ... { ... })
     let fn_re = Regex::new(r"(?m)^fn\s+(\w+)").unwrap();
@@ -23,7 +25,7 @@ pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
         .map(|c| (c.get(0).unwrap().start(), c.get(1).unwrap().as_str()))
         .collect();
 
-    // Build map: function_name -> list of Some("...") values in that function
+    // Build map: function_name -> list of match arm string values in that function
     let mut fn_commands: HashMap<&str, Vec<String>> = HashMap::new();
     for (i, &(start, name)) in fn_starts.iter().enumerate() {
         let end = fn_starts
@@ -31,10 +33,18 @@ pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
             .map(|(s, _)| *s)
             .unwrap_or(source.len());
         let body = &source[start..end];
-        let cmds: Vec<String> = some_re
+        // Collect Some("...") patterns
+        let mut cmds: Vec<String> = some_re
             .captures_iter(body)
             .map(|c| c[1].to_string())
             .collect();
+        // For dispatch_ functions, also collect bare "name" => patterns
+        if name.starts_with("dispatch_") && cmds.is_empty() {
+            cmds = bare_re
+                .captures_iter(body)
+                .map(|c| c[1].to_string())
+                .collect();
+        }
         fn_commands.insert(name, cmds);
     }
 
@@ -216,6 +226,46 @@ fn dispatch_check(sub: &str) {
         let cmds = parse_source(source);
         let stale = cmds.iter().find(|c| c.name == "check stale-names").unwrap();
         assert_eq!(stale.description.as_deref(), Some("audit old names"));
+    }
+
+    #[test]
+    fn test_bare_match_arms_in_dispatch() {
+        // Minibox-style: dispatch_test uses bare "unit" => not Some("unit")
+        let source = r#"
+fn main() {
+    match task.as_deref() {
+        Some("test") => cmd_test(),
+        Some("verify") => verify(),
+        _ => {}
+    }
+}
+
+fn cmd_test() {
+    match suite.as_deref() {
+        Some(s) => dispatch_test(s),
+        None => eprintln!("pick a suite"),
+    }
+}
+
+fn dispatch_test(suite: &str) {
+    match suite {
+        "unit" => test_unit(),
+        "e2e" => test_e2e(),
+        "system-suite" | "e2e-suite" => test_system(),
+        other => bail!("unknown"),
+    }
+}
+        "#;
+        let cmds = parse_source(source);
+        let names: Vec<&str> = cmds.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"test unit"), "got: {names:?}");
+        assert!(names.contains(&"test e2e"), "got: {names:?}");
+        assert!(names.contains(&"test system-suite"), "got: {names:?}");
+        assert!(names.contains(&"verify"), "got: {names:?}");
+        assert!(
+            !names.contains(&"test"),
+            "group cmd should be expanded: {names:?}"
+        );
     }
 
     #[test]
