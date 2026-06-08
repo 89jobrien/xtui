@@ -14,7 +14,16 @@ use std::path::{Path, PathBuf};
 fn find_workspace_root(start: &Path) -> Option<PathBuf> {
     let mut dir = start.to_path_buf();
     loop {
-        if dir.join("Cargo.lock").exists() && dir.join("xtask").is_dir() {
+        // Accept any project with a recognizable marker
+        let markers = [
+            "Cargo.toml",
+            "Justfile",
+            "justfile",
+            "package.json",
+            "Makefile",
+            "mise.toml",
+        ];
+        if markers.iter().any(|m| dir.join(m).exists()) {
             return Some(dir);
         }
         if !dir.pop() {
@@ -40,12 +49,11 @@ async fn main() -> anyhow::Result<()> {
         None => {
             let cwd = std::env::current_dir()?;
             find_workspace_root(&cwd)
-                .ok_or_else(|| anyhow::anyhow!("no xtask workspace found (use --path <dir>)"))?
+                .ok_or_else(|| anyhow::anyhow!("no project found (use --path <dir>)"))?
         }
     };
 
-    let commands = discover::discover_commands(&workspace).await?;
-    let mut app = app::App::new(workspace, commands);
+    let mut app = app::App::new(workspace);
     app.run().await
 }
 

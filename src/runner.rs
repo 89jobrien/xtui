@@ -94,6 +94,28 @@ pub async fn run_xtask(workspace: &Path, command: &str) -> Result<RunningTask> {
     .await
 }
 
+pub async fn run_source_command(
+    workspace: &Path,
+    cmd: &crate::source::SourceCommand,
+) -> Result<RunningTask> {
+    match cmd.source.as_str() {
+        "xtask" => run_xtask(workspace, &cmd.name).await,
+        "cargo" => {
+            let parts: Vec<&str> = cmd.name.split_whitespace().collect();
+            spawn_command("cargo", &parts, workspace).await
+        }
+        "just" => spawn_command("just", &[cmd.name.as_str()], workspace).await,
+        "nu" => {
+            let script = format!("scripts/{}.nu", cmd.name);
+            spawn_command("nu", &[script.as_str()], workspace).await
+        }
+        "npm" => spawn_command("npm", &["run", &cmd.name], workspace).await,
+        "make" => spawn_command("make", &[cmd.name.as_str()], workspace).await,
+        "mise" => spawn_command("mise", &["run", &cmd.name], workspace).await,
+        other => anyhow::bail!("unknown source: {other}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
