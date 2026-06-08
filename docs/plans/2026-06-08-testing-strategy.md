@@ -1,7 +1,7 @@
 # Testing Strategy: Pure Logic + Integration
 
 **Date:** 2026-06-08
-**Status:** Draft
+**Status:** Done (v0.1.0)
 **Scope:** xtui crate only
 
 ## Goal

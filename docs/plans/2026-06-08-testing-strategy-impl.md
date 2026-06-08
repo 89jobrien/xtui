@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-08
 **Design:** `docs/plans/2026-06-08-testing-strategy.md`
-**Status:** Ready
+**Status:** Done (v0.1.0)
 
 ## Context Map
 
