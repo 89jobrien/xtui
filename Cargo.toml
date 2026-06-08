@@ -1,0 +1,19 @@
+[workspace]
+members = [".", "xtask"]
+
+[package]
+name = "xtui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ratatui = "0.30"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+ansi-to-tui = "8"
+anyhow = "1"
+regex = "1"
+futures-util = "0.3"
+
+[dev-dependencies]
+proptest = "1"
