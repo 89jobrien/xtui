@@ -13,10 +13,17 @@ fn workspace_root() -> PathBuf {
 fn cargo(args: &[&str]) -> ! {
     let root = workspace_root();
     let manifest = root.join("Cargo.toml");
+    // Split at "--" so --manifest-path goes before the separator
+    let split = args.iter().position(|a| *a == "--");
+    let (before, after) = match split {
+        Some(i) => (&args[..i], &args[i..]),
+        None => (args, [].as_slice()),
+    };
     let status = Command::new("cargo")
-        .args(args)
+        .args(before)
         .arg("--manifest-path")
         .arg(&manifest)
+        .args(after)
         .status()
         .expect("failed to run cargo");
     std::process::exit(status.code().unwrap_or(1));

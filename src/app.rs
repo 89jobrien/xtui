@@ -4,7 +4,7 @@ use crate::ui;
 use anyhow::Result;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
-use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::crossterm::execute;
 use ratatui::crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -37,6 +37,12 @@ fn base64_encode(input: &[u8]) -> String {
     out
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    Commands,
+    Output,
+}
+
 pub struct App {
     pub workspace: PathBuf,
     pub commands: Vec<XtaskCommand>,
@@ -46,6 +52,9 @@ pub struct App {
     pub exit_code: Option<i32>,
     pub should_quit: bool,
     pub flash_message: Option<(String, std::time::Instant)>,
+    pub focus: Focus,
+    pub output_scroll: u16,
+    pub output_height: u16,
 }
 
 impl App {
@@ -59,6 +68,9 @@ impl App {
             exit_code: None,
             should_quit: false,
             flash_message: None,
+            focus: Focus::Commands,
+            output_scroll: 0,
+            output_height: 0,
         }
     }
 
@@ -70,6 +82,22 @@ impl App {
 
     pub fn previous(&mut self) {
         self.selected = self.selected.saturating_sub(1);
+    }
+
+    fn scroll_output_down(&mut self) {
+        let max = (self.output.len() as u16).saturating_sub(self.output_height);
+        if self.output_scroll < max {
+            self.output_scroll += 1;
+        }
+    }
+
+    fn scroll_output_up(&mut self) {
+        self.output_scroll = self.output_scroll.saturating_sub(1);
+    }
+
+    fn scroll_output_to_bottom(&mut self) {
+        let max = (self.output.len() as u16).saturating_sub(self.output_height);
+        self.output_scroll = max;
     }
 
     async fn run_selected(&mut self) -> Result<()> {
@@ -92,15 +120,24 @@ impl App {
     }
 
     fn poll_output(&mut self) {
+        let mut finished = None;
         if let Some(ref mut task) = self.task {
+            let prev_len = self.output.len();
             task.poll_lines(&mut self.output);
             if self.output.len() > 10_000 {
                 self.output.drain(..1000);
             }
-            if let Some(code) = task.try_exit_code() {
-                self.exit_code = Some(code);
-                self.task = None;
+            if self.output.len() != prev_len && self.focus == Focus::Commands {
+                let max = (self.output.len() as u16).saturating_sub(self.output_height);
+                self.output_scroll = max;
             }
+            if let Some(code) = task.try_exit_code() {
+                finished = Some(code);
+            }
+        }
+        if let Some(code) = finished {
+            self.exit_code = Some(code);
+            self.task = None;
         }
     }
 
@@ -142,7 +179,7 @@ impl App {
                 self.flash_message = None;
             }
 
-            terminal.draw(|frame| ui::draw(frame, self))?;
+            terminal.draw(|frame| ui::draw(frame, &mut *self))?;
             self.poll_output();
 
             if event::poll(std::time::Duration::from_millis(50))?
@@ -152,11 +189,46 @@ impl App {
                     continue;
                 }
                 match key.code {
-                    KeyCode::Char('q') => self.should_quit = true,
-                    KeyCode::Char('j') | KeyCode::Down => self.next(),
-                    KeyCode::Char('k') | KeyCode::Up => self.previous(),
+                    KeyCode::Char('q') => {
+                        self.cancel().await;
+                        self.should_quit = true;
+                    }
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if self.task.is_some() {
+                            self.cancel().await;
+                        } else {
+                            self.cancel().await;
+                            self.should_quit = true;
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if self.task.is_some() {
+                            self.cancel().await;
+                        } else if self.focus == Focus::Output {
+                            self.focus = Focus::Commands;
+                        }
+                    }
+                    KeyCode::Tab | KeyCode::BackTab => {
+                        self.focus = match self.focus {
+                            Focus::Commands => Focus::Output,
+                            Focus::Output => Focus::Commands,
+                        };
+                    }
+                    KeyCode::Char('j') | KeyCode::Down => match self.focus {
+                        Focus::Commands => self.next(),
+                        Focus::Output => self.scroll_output_down(),
+                    },
+                    KeyCode::Char('k') | KeyCode::Up => match self.focus {
+                        Focus::Commands => self.previous(),
+                        Focus::Output => self.scroll_output_up(),
+                    },
+                    KeyCode::Char('g') if self.focus == Focus::Output => {
+                        self.output_scroll = 0;
+                    }
+                    KeyCode::Char('G') if self.focus == Focus::Output => {
+                        self.scroll_output_to_bottom();
+                    }
                     KeyCode::Enter => self.run_selected().await?,
-                    KeyCode::Esc => self.cancel().await,
                     KeyCode::Char('r') => self.refresh_commands().await?,
                     KeyCode::Char('c') => self.copy_output(),
                     _ => {}

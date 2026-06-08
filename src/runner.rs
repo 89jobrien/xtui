@@ -12,6 +12,13 @@ pub struct RunningTask {
     rx: mpsc::Receiver<String>,
 }
 
+impl Drop for RunningTask {
+    fn drop(&mut self) {
+        // Best-effort sync kill to avoid orphaned processes on quit
+        let _ = self.child.start_kill();
+    }
+}
+
 impl RunningTask {
     /// Drain any buffered lines from the output channel.
     pub fn poll_lines(&mut self, buf: &mut Vec<String>) {

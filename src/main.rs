@@ -1,6 +1,12 @@
 mod app;
 mod discover;
+mod history;
+mod pipeline;
+mod registry;
 mod runner;
+mod search;
+mod source;
+mod status;
 mod ui;
 
 use std::path::{Path, PathBuf};
