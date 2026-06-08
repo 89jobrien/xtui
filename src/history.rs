@@ -197,4 +197,81 @@ mod tests {
         assert_eq!(entries.last().unwrap().command, "cmd59");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn test_prune_at_exactly_100() {
+        let tmp = std::env::temp_dir().join("xtui-test-prune-100");
+        let _ = std::fs::remove_dir_all(&tmp);
+        let log_dir = tmp.join("myproj");
+        std::fs::create_dir_all(&log_dir).unwrap();
+        for i in 0..100 {
+            std::fs::write(log_dir.join(format!("{i:04}.log")), "x").unwrap();
+        }
+        prune_logs(&tmp, "myproj").unwrap();
+        let count = std::fs::read_dir(&log_dir).unwrap().count();
+        assert_eq!(count, 100); // no pruning
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_prune_at_101() {
+        let tmp = std::env::temp_dir().join("xtui-test-prune-101");
+        let _ = std::fs::remove_dir_all(&tmp);
+        let log_dir = tmp.join("myproj");
+        std::fs::create_dir_all(&log_dir).unwrap();
+        for i in 0..101 {
+            std::fs::write(log_dir.join(format!("{i:04}.log")), "x").unwrap();
+        }
+        prune_logs(&tmp, "myproj").unwrap();
+        let count = std::fs::read_dir(&log_dir).unwrap().count();
+        assert_eq!(count, 100);
+        // Oldest file (0000.log) should be gone
+        assert!(!log_dir.join("0000.log").exists());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_save_entry_special_chars() {
+        let tmp = std::env::temp_dir().join("xtui-test-special");
+        let _ = std::fs::remove_dir_all(&tmp);
+        let entry = HistoryEntry {
+            command: "check".into(),
+            source: "cargo".into(),
+            exit_code: 0,
+            timestamp: String::new(),
+            duration_secs: 1,
+        };
+        // Project name with spaces and unicode
+        save_entry(&tmp, "my project", &entry).unwrap();
+        let entries = load_history(&tmp, "my project").unwrap();
+        assert_eq!(entries.len(), 1);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_days_to_ymd_epoch() {
+        let (y, m, d) = days_to_ymd(0);
+        assert_eq!((y, m, d), (1970, 1, 1));
+    }
+
+    #[test]
+    fn test_days_to_ymd_leap_day() {
+        // 2024-02-29: days since epoch
+        // 2024-01-01 = 19723 days since epoch
+        // Jan: 31, Feb 1-29: 29 -> 31 + 28 = 59 days into year
+        // 19723 + 59 = 19782
+        let (y, m, d) = days_to_ymd(19782);
+        assert_eq!((y, m, d), (2024, 2, 29));
+    }
+
+    #[test]
+    fn test_days_to_ymd_today() {
+        // 2026-06-08
+        // 2026-01-01 = 20454 days since epoch
+        // Jan:31 Feb:28 Mar:31 Apr:30 May:31 Jun:1-8 = 31+28+31+30+31+8 = 159
+        // But day 0 of year is Jan 1, so offset is 158
+        // 20454 + 158 = 20612
+        let (y, m, d) = days_to_ymd(20612);
+        assert_eq!((y, m, d), (2026, 6, 8));
+    }
 }

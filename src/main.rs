@@ -1,14 +1,18 @@
 mod app;
-mod discover;
-mod history;
-mod pipeline;
-#[allow(dead_code)]
-mod registry;
-mod runner;
-mod search;
-mod source;
-mod status;
 mod ui;
+
+// Re-export lib modules so app.rs/ui.rs can use crate::module paths.
+use xtui as xtui_lib;
+#[allow(unused_imports)]
+pub(crate) use xtui_lib::discover;
+pub(crate) use xtui_lib::history;
+pub(crate) use xtui_lib::pipeline;
+#[allow(unused_imports)]
+pub(crate) use xtui_lib::registry;
+pub(crate) use xtui_lib::runner;
+pub(crate) use xtui_lib::search;
+pub(crate) use xtui_lib::source;
+pub(crate) use xtui_lib::status;
 
 use std::path::{Path, PathBuf};
 

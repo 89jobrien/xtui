@@ -282,6 +282,69 @@ fn main() {
         let cmds = parse_source(source);
         assert_eq!(cmds.len(), 1);
     }
+
+    #[test]
+    fn test_parse_source_empty_input() {
+        let cmds = parse_source("");
+        assert!(cmds.is_empty());
+    }
+
+    #[test]
+    fn test_parse_source_no_match_block() {
+        let source = "fn main() {\n    println!(\"hello\");\n}\n";
+        let cmds = parse_source(source);
+        assert!(cmds.is_empty());
+    }
+
+    #[test]
+    fn test_descriptions_with_escaped_quotes() {
+        let source = r#"
+fn main() {
+    match task.as_deref() {
+        Some("check") => check(),
+        _ => {
+            eprintln!("    check        Run \"cargo check\"");
+        }
+    }
+}
+        "#;
+        let cmds = parse_source(source);
+        assert_eq!(cmds.len(), 1);
+        // Description parsing may or may not capture escaped quotes —
+        // the important thing is it doesn't panic
+    }
+
+    #[test]
+    fn test_descriptions_multiword_command_key() {
+        let source = r#"
+fn main() {
+    match task.as_deref() {
+        Some("test") => cmd_test(),
+        _ => {}
+    }
+}
+
+fn cmd_test() {
+    match sub.as_deref() {
+        Some(s) => dispatch_test(s),
+        None => {
+            eprintln!("  test unit     Run unit tests");
+        }
+    }
+}
+
+fn dispatch_test(sub: &str) {
+    match sub {
+        Some("unit") => test_unit(),
+        _ => {}
+    }
+}
+        "#;
+        let cmds = parse_source(source);
+        let unit = cmds.iter().find(|c| c.name == "test unit");
+        assert!(unit.is_some(), "missing 'test unit' in {cmds:?}");
+        assert_eq!(unit.unwrap().description.as_deref(), Some("Run unit tests"));
+    }
 }
 
 #[cfg(test)]

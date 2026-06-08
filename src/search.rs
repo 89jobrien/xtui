@@ -121,4 +121,55 @@ mod tests {
         assert_eq!(search.matches.len(), 0);
         assert_eq!(search.next_match(), None);
     }
+
+    #[test]
+    fn test_empty_query_matches_all() {
+        let lines = vec!["a".into(), "b".into(), "c".into()];
+        let mut search = SearchState::new("");
+        search.find_matches(&lines);
+        assert_eq!(search.match_count(), 3);
+    }
+
+    #[test]
+    fn test_empty_lines() {
+        let lines: Vec<String> = vec![];
+        let mut search = SearchState::new("anything");
+        search.find_matches(&lines);
+        assert_eq!(search.match_count(), 0);
+        assert_eq!(search.next_match(), None);
+        assert_eq!(search.prev_match(), None);
+    }
+
+    #[test]
+    fn test_single_line_wraps_to_itself() {
+        let lines = vec!["match".into()];
+        let mut search = SearchState::new("match");
+        search.find_matches(&lines);
+        assert_eq!(search.match_count(), 1);
+        assert_eq!(search.current_line(), Some(0));
+        assert_eq!(search.next_match(), Some(0)); // wraps
+        assert_eq!(search.prev_match(), Some(0)); // wraps
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn find_matches_never_panics(
+            query in ".*",
+            lines in proptest::collection::vec(".*", 0..50)
+        ) {
+            let lines: Vec<String> = lines.into_iter().map(|s| s.to_string()).collect();
+            let mut search = SearchState::new(&query);
+            search.find_matches(&lines);
+            // All match indices should be valid
+            for &idx in &search.matches {
+                prop_assert!(idx < lines.len());
+            }
+        }
+    }
 }

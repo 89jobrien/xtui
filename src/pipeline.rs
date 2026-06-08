@@ -178,4 +178,91 @@ mod tests {
         assert!(!pipe.is_active());
         assert!(pipe.current_step().is_none());
     }
+
+    #[test]
+    fn test_advance_on_pending_is_noop() {
+        let steps = vec![PipelineStep {
+            name: "check".into(),
+            source: "cargo".into(),
+        }];
+        let mut pipe = Pipeline::new(steps);
+        // Don't call start — status is Pending
+        pipe.advance(0);
+        assert_eq!(pipe.status, PipelineStatus::Pending);
+    }
+
+    #[test]
+    fn test_advance_on_done_is_noop() {
+        let steps = vec![PipelineStep {
+            name: "check".into(),
+            source: "cargo".into(),
+        }];
+        let mut pipe = Pipeline::new(steps);
+        pipe.start();
+        pipe.advance(0); // -> Done
+        assert_eq!(pipe.status, PipelineStatus::Done(0));
+        pipe.advance(0); // noop
+        assert_eq!(pipe.status, PipelineStatus::Done(0));
+    }
+
+    #[test]
+    fn test_advance_on_failed_is_noop() {
+        let steps = vec![PipelineStep {
+            name: "check".into(),
+            source: "cargo".into(),
+        }];
+        let mut pipe = Pipeline::new(steps);
+        pipe.start();
+        pipe.advance(1); // -> Failed
+        assert_eq!(pipe.status, PipelineStatus::Failed(0, 1));
+        pipe.advance(0); // noop
+        assert_eq!(pipe.status, PipelineStatus::Failed(0, 1));
+    }
+
+    #[test]
+    fn test_single_step_success() {
+        let steps = vec![PipelineStep {
+            name: "check".into(),
+            source: "cargo".into(),
+        }];
+        let mut pipe = Pipeline::new(steps);
+        pipe.start();
+        pipe.advance(0);
+        assert_eq!(pipe.status, PipelineStatus::Done(0));
+    }
+
+    #[test]
+    fn test_single_step_failure() {
+        let steps = vec![PipelineStep {
+            name: "check".into(),
+            source: "cargo".into(),
+        }];
+        let mut pipe = Pipeline::new(steps);
+        pipe.start();
+        pipe.advance(42);
+        assert_eq!(pipe.status, PipelineStatus::Failed(0, 42));
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn advance_never_panics(exit_codes in proptest::collection::vec(-128i32..128, 0..20)) {
+            let steps: Vec<PipelineStep> = (0..exit_codes.len())
+                .map(|i| PipelineStep {
+                    name: format!("step{i}"),
+                    source: "test".into(),
+                })
+                .collect();
+            let mut pipe = Pipeline::new(steps);
+            pipe.start();
+            for code in &exit_codes {
+                pipe.advance(*code);
+            }
+        }
+    }
 }

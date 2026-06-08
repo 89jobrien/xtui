@@ -108,6 +108,12 @@ mod tests {
     }
 
     #[test]
+    fn scan_nonexistent_path() {
+        let projects = scan_directory(std::path::Path::new("/nonexistent/path/xtui-test"));
+        assert!(projects.is_empty());
+    }
+
+    #[test]
     fn scan_finds_dirs_with_cargo_toml() {
         let base = temp_dir("cargo");
         let proj = base.join("myproj");

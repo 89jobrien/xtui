@@ -636,6 +636,17 @@ mod tests {
     }
 
     #[test]
+    fn test_base64_encode_rfc4648_vectors() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[test]
     fn test_flash_message() {
         let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
         assert!(app.flash_message.is_none());
