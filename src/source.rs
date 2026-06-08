@@ -82,18 +82,17 @@ impl CommandSource for CargoSource {
             .collect();
 
         // Parse [[bin]] entries from Cargo.toml for extra run targets
-        if let Ok(contents) = std::fs::read_to_string(project.join("Cargo.toml")) {
-            if let Ok(doc) = contents.parse::<toml::Table>() {
-                if let Some(bins) = doc.get("bin").and_then(|v| v.as_array()) {
-                    for bin in bins {
-                        if let Some(name) = bin.get("name").and_then(|v| v.as_str()) {
-                            cmds.push(SourceCommand {
-                                name: format!("run --bin {name}"),
-                                description: Some(format!("cargo run --bin {name}")),
-                                source: "cargo".to_string(),
-                            });
-                        }
-                    }
+        if let Ok(contents) = std::fs::read_to_string(project.join("Cargo.toml"))
+            && let Ok(doc) = contents.parse::<toml::Table>()
+            && let Some(bins) = doc.get("bin").and_then(|v| v.as_array())
+        {
+            for bin in bins {
+                if let Some(name) = bin.get("name").and_then(|v| v.as_str()) {
+                    cmds.push(SourceCommand {
+                        name: format!("run --bin {name}"),
+                        description: Some(format!("cargo run --bin {name}")),
+                        source: "cargo".to_string(),
+                    });
                 }
             }
         }
@@ -167,14 +166,14 @@ impl CommandSource for NuScriptSource {
         if let Ok(entries) = std::fs::read_dir(&scripts_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("nu") {
-                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        cmds.push(SourceCommand {
-                            name: stem.to_string(),
-                            description: Some(format!("nu scripts/{stem}.nu")),
-                            source: "nu".to_string(),
-                        });
-                    }
+                if path.extension().and_then(|e| e.to_str()) == Some("nu")
+                    && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+                {
+                    cmds.push(SourceCommand {
+                        name: stem.to_string(),
+                        description: Some(format!("nu scripts/{stem}.nu")),
+                        source: "nu".to_string(),
+                    });
                 }
             }
         }

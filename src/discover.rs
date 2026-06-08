@@ -65,24 +65,24 @@ pub fn parse_source(source: &str) -> Vec<XtaskCommand> {
             .get(dispatch_fn.as_str())
             .or_else(|| fn_commands.get(cmd_fn.as_str()));
 
-        if let Some(subs) = sub_cmds {
-            if !subs.is_empty() {
-                // This is a group command — emit subcommands as "group sub"
-                for sub in subs {
-                    let full_name = format!("{name} {sub}");
-                    if seen.insert(full_name.clone()) {
-                        let desc = desc_map
-                            .get(&full_name)
-                            .or_else(|| desc_map.get(sub.as_str()))
-                            .cloned();
-                        commands.push(XtaskCommand {
-                            name: full_name,
-                            description: desc,
-                        });
-                    }
+        if let Some(subs) = sub_cmds
+            && !subs.is_empty()
+        {
+            // This is a group command — emit subcommands as "group sub"
+            for sub in subs {
+                let full_name = format!("{name} {sub}");
+                if seen.insert(full_name.clone()) {
+                    let desc = desc_map
+                        .get(&full_name)
+                        .or_else(|| desc_map.get(sub.as_str()))
+                        .cloned();
+                    commands.push(XtaskCommand {
+                        name: full_name,
+                        description: desc,
+                    });
                 }
-                continue;
             }
+            continue;
         }
 
         // Top-level command (no sub-dispatch)

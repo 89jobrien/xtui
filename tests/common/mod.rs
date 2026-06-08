@@ -4,10 +4,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+#[allow(dead_code)]
 pub struct ProjectFixture {
     root: PathBuf,
 }
 
+#[allow(dead_code)]
 impl ProjectFixture {
     pub fn new() -> Self {
         let id = COUNTER.fetch_add(1, Ordering::Relaxed);

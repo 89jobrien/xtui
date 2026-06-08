@@ -275,21 +275,20 @@ impl App {
             false
         };
 
-        if should_start_next {
-            if let Some(ref pipe) = self.pipeline {
-                if let Some(step) = pipe.current_step() {
-                    let cmd = SourceCommand {
-                        name: step.name.clone(),
-                        source: step.source.clone(),
-                        description: None,
-                    };
-                    self.output
-                        .push(format!("--- [pipeline] running: {} ---", cmd.name));
-                    self.run_start = Some(std::time::Instant::now());
-                    let task = runner::run_source_command(&self.workspace, &cmd).await?;
-                    self.task = Some(task);
-                }
-            }
+        if should_start_next
+            && let Some(ref pipe) = self.pipeline
+            && let Some(step) = pipe.current_step()
+        {
+            let cmd = SourceCommand {
+                name: step.name.clone(),
+                source: step.source.clone(),
+                description: None,
+            };
+            self.output
+                .push(format!("--- [pipeline] running: {} ---", cmd.name));
+            self.run_start = Some(std::time::Instant::now());
+            let task = runner::run_source_command(&self.workspace, &cmd).await?;
+            self.task = Some(task);
         }
         Ok(())
     }
@@ -346,18 +345,18 @@ impl App {
     }
 
     fn search_next(&mut self) {
-        if let Some(ref mut search) = self.search {
-            if let Some(line) = search.next_match() {
-                self.output_scroll = line as u16;
-            }
+        if let Some(ref mut search) = self.search
+            && let Some(line) = search.next_match()
+        {
+            self.output_scroll = line as u16;
         }
     }
 
     fn search_prev(&mut self) {
-        if let Some(ref mut search) = self.search {
-            if let Some(line) = search.prev_match() {
-                self.output_scroll = line as u16;
-            }
+        if let Some(ref mut search) = self.search
+            && let Some(line) = search.prev_match()
+        {
+            self.output_scroll = line as u16;
         }
     }
 
