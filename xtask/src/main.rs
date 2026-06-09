@@ -47,8 +47,8 @@ fn copy_sources(root: &PathBuf, book_dir: &PathBuf) {
     let config_path = book_dir.join("copies.toml");
     let config_str = std::fs::read_to_string(&config_path)
         .unwrap_or_else(|e| panic!("failed to read {}: {e}", config_path.display()));
-    let config: CopiesConfig = toml::from_str(&config_str)
-        .unwrap_or_else(|e| panic!("failed to parse copies.toml: {e}"));
+    let config: CopiesConfig =
+        toml::from_str(&config_str).unwrap_or_else(|e| panic!("failed to parse copies.toml: {e}"));
 
     for section in &config.sections {
         let dest_dir = book_dir.join(&section.dest);
@@ -172,9 +172,14 @@ fn protect_angle_brackets_in_line(line: &str) -> String {
                 // Only wrap if inner looks like a placeholder (word chars, slashes, dots, spaces)
                 // and not like an HTML/XML tag we want to keep (e.g. already in a code block).
                 let looks_like_placeholder = !inner.is_empty()
-                    && inner
-                        .chars()
-                        .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '/' || c == '.' || c == ' ');
+                    && inner.chars().all(|c| {
+                        c.is_alphanumeric()
+                            || c == '_'
+                            || c == '-'
+                            || c == '/'
+                            || c == '.'
+                            || c == ' '
+                    });
                 if looks_like_placeholder {
                     result.push('`');
                     result.push('<');
@@ -196,6 +201,100 @@ fn protect_angle_brackets_in_line(line: &str) -> String {
     result
 }
 
+fn git(args: &[&str]) -> bool {
+    Command::new("git")
+        .args(args)
+        .status()
+        .unwrap_or_else(|e| panic!("failed to run git: {e}"))
+        .success()
+}
+
+fn is_dry_run() -> bool {
+    env::args().any(|a| a == "--dry-run" || a == "-n")
+}
+
+fn promote_staging() -> ! {
+    let dry = is_dry_run();
+    let root = workspace_root();
+    std::env::set_current_dir(&root).expect("failed to cd to workspace root");
+    if dry {
+        eprintln!("[dry-run] git fetch github");
+        eprintln!("[dry-run] git checkout staging");
+        eprintln!("[dry-run] git merge --ff-only github/develop");
+        eprintln!("[dry-run] git push github staging");
+        std::process::exit(0);
+    }
+    git(&["fetch", "github"]);
+    git(&["checkout", "staging"]);
+    let ok = git(&["merge", "--ff-only", "github/develop"]);
+    if !ok {
+        eprintln!("error: fast-forward failed — staging and develop have diverged");
+        std::process::exit(1);
+    }
+    let ok = git(&["push", "github", "staging"]);
+    std::process::exit(if ok { 0 } else { 1 });
+}
+
+fn promote_main() -> ! {
+    let dry = is_dry_run();
+    let root = workspace_root();
+    std::env::set_current_dir(&root).expect("failed to cd to workspace root");
+    if dry {
+        eprintln!("[dry-run] git fetch github");
+        eprintln!("[dry-run] git checkout main");
+        eprintln!("[dry-run] git merge --ff-only github/staging");
+        eprintln!("[dry-run] git push github main");
+        std::process::exit(0);
+    }
+    git(&["fetch", "github"]);
+    git(&["checkout", "main"]);
+    let ok = git(&["merge", "--ff-only", "github/staging"]);
+    if !ok {
+        eprintln!("error: fast-forward failed — main and staging have diverged");
+        std::process::exit(1);
+    }
+    let ok = git(&["push", "github", "main"]);
+    std::process::exit(if ok { 0 } else { 1 });
+}
+
+fn nightly() -> ! {
+    let dry = is_dry_run();
+    let root = workspace_root();
+    if dry {
+        let status = Command::new("cargo")
+            .args(["rail", "release", "run", "xtui", "--check"])
+            .current_dir(&root)
+            .status()
+            .expect("failed to run cargo rail — is it installed? `cargo install cargo-rail`");
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    let status = Command::new("cargo")
+        .args(["build", "--release", "--manifest-path"])
+        .arg(root.join("Cargo.toml"))
+        .status()
+        .expect("failed to run cargo build");
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    git(&["tag", "-f", "nightly"]);
+    let status = Command::new("cargo")
+        .args([
+            "rail",
+            "release",
+            "run",
+            "xtui",
+            "--bump",
+            "prerelease",
+            "--skip-publish",
+            "--skip-tag",
+            "-y",
+        ])
+        .current_dir(&root)
+        .status()
+        .expect("failed to run cargo rail — is it installed? `cargo install cargo-rail`");
+    std::process::exit(status.code().unwrap_or(1));
+}
+
 fn main() {
     let task = env::args().nth(1);
     match task.as_deref() {
@@ -213,14 +312,22 @@ fn main() {
         }
         Some("docs") => docs(),
         Some("book") => book(),
+        Some("promote-staging") => promote_staging(),
+        Some("promote-main") => promote_main(),
+        Some("nightly") => nightly(),
         _ => {
             eprintln!("Available commands:");
-            eprintln!("    check        Run cargo check");
-            eprintln!("    test         Run cargo test");
-            eprintln!("    clippy       Run cargo clippy");
-            eprintln!("    install      Install xtui to ~/.cargo/bin");
-            eprintln!("    docs         Copy sources and build the mdbook → xbook/dist/");
-            eprintln!("    book         Copy sources and serve the mdbook (opens browser)");
+            eprintln!("    check            Run cargo check");
+            eprintln!("    test             Run cargo test");
+            eprintln!("    clippy           Run cargo clippy");
+            eprintln!("    install          Install xtui to ~/.cargo/bin");
+            eprintln!("    docs             Copy sources and build the mdbook → xbook/dist/");
+            eprintln!("    book             Copy sources and serve the mdbook (opens browser)");
+            eprintln!("    promote-staging  FF-merge develop → staging and push  [--dry-run]");
+            eprintln!("    promote-main     FF-merge staging → main and push     [--dry-run]");
+            eprintln!(
+                "    nightly          Build release binary and upsert nightly tag  [--dry-run: rail --check]"
+            );
         }
     }
 }

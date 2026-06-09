@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [develop, staging, main]
   pull_request:
     branches: [main]
 
@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -29,7 +31,15 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Install cargo-rail
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest,just
+
+      - run: cargo install cargo-rail --locked 2>/dev/null || true
+
       - name: version label
+        if: github.actor != 'github-actions[bot]'
         run: |
           MSG=$(git log -1 --format=%B)
           if ! echo "$MSG" | grep -qE '\(\+patch |\(\+minor |\(\+major '; then
@@ -41,12 +51,5 @@ jobs:
       - name: fmt
         run: cargo fmt --all --check
 
-      - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: nextest,just
-
-      - name: test
-        run: cargo nextest run --workspace
+      - name: rail run
+        run: cargo rail run --profile ci --merge-base

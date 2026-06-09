@@ -6,13 +6,12 @@
 
 # Guide
 
-- [README](guide/readme.md)
+- [xtui](guide/readme.md)
+- [xtask](guide/xtask.md)
+- [xbook](guide/xbook.md)
 - [Contributing](guide/contributing.md)
 - [Deployment & Release](guide/deployment.md)
 - [Changelog](guide/changelog.md)
-- [CLAUDE.md](guide/claude.md)
-- [AGENTS.md](guide/agents.md)
-
 ---
 
 # Architecture
@@ -53,3 +52,10 @@
   - [Dep View Feature](knowledge/summary/dep-view-feature.md)
 - [Entities]()
   - [CommandSource](knowledge/entity/commandsource.md)
+
+---
+
+# Meta
+
+- [CLAUDE.md](meta/claude.md)
+- [AGENTS.md](meta/agents.md)

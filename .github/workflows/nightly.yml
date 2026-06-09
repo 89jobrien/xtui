@@ -1,0 +1,52 @@
+name: Nightly
+
+on:
+  push:
+    branches: [staging]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  nightly:
+    name: Build and publish nightly
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-nightly-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-nightly-
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Generate release notes
+        run: git-cliff --unreleased --output RELEASE_NOTES.md
+
+      - name: Upsert nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: "nightly (${{ github.sha }})"
+          body_path: RELEASE_NOTES.md
+          files: target/release/xtui
+          draft: false
+          prerelease: true

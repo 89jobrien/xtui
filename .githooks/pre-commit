@@ -1,0 +1,13 @@
+#!/usr/bin/env nu
+
+# Pre-commit: run cargo fmt --all and re-stage any reformatted files.
+
+let result = (do { cargo fmt --all } | complete)
+
+if $result.exit_code != 0 {
+    print $"cargo fmt failed:\n($result.stderr)"
+    exit 1
+}
+
+# Re-stage any files that fmt changed so the commit includes them.
+git add -u

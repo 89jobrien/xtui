@@ -2,11 +2,11 @@
 dest = "guide"
 files = [
     "README.md:readme.md",
+    "xtask/xREADME.md:xtask.md",
+    "xbook/xREADME.md:xbook.md",
     "CONTRIBUTING.md:contributing.md",
     "DEPLOYMENT.md:deployment.md",
     "CHANGELOG.md:changelog.md",
-    "CLAUDE.md:claude.md",
-    "AGENTS.md:agents.md",
 ]
 
 [[copy]]
@@ -40,6 +40,13 @@ files = [
     ".kgx/wiki/summary/xtui-architecture-summary.md:xtui-architecture-summary.md",
     ".kgx/wiki/summary/xtui-release-process.md:xtui-release-process.md",
     ".kgx/wiki/summary/dep-view-feature.md:dep-view-feature.md",
+]
+
+[[copy]]
+dest = "meta"
+files = [
+    "CLAUDE.md:claude.md",
+    "AGENTS.md:agents.md",
 ]
 
 [[copy]]

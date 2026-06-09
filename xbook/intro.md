@@ -12,11 +12,12 @@ cargo install xtui
 
 | Section | Contents |
 |---|---|
-| **Guide** | README, contributing, deployment/release, changelog |
+| **Guide** | README, xtask commands, xbook setup, contributing, deployment/release, changelog |
 | **Architecture** | Module map, traits, key design decisions |
 | **Design Plans** | Original plans and implementation notes |
 | **Context** | Memory bank: brief, tech stack, patterns, progress, mistakes |
 | **Knowledge Graph** | kgx wiki summaries and entity pages |
+| **Meta** | CLAUDE.md, AGENTS.md |
 
 ## Quick links
 
