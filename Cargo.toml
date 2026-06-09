@@ -1,6 +1,6 @@
 [package]
 name = "xtui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "TUI for discovering and running project commands (xtask, cargo, just, nu, npm, make, mise)"
 license = "MIT OR Apache-2.0"
