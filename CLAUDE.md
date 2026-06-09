@@ -56,11 +56,47 @@ cargo xtask install           # install to ~/.cargo/bin
 
 ## Release
 
-See `DEPLOYMENT.md` for the full release process. Short version:
+Releases are managed via `cargo-rail` + CI. Config: `.config/rail.toml`.
 
-```sh
-# 1. Bump version in Cargo.toml
-# 2. git tag vx.y.z && git push github main && git push github vx.y.z
-# 3. Run the nu release script (see DEPLOYMENT.md) to create GitHub release
-# 4. cargo publish --allow-dirty
+### Patch bump (automated)
+
+Every push to `main` triggers `.githooks/pre-push`, which:
+- Bumps `Cargo.toml` patch version (`0.2.1` → `0.2.2`)
+- Amends the outgoing commit, appending `(+patch 0.2.2)` to the message body
+- No tag is created — patch releases are informational only
+
+### Minor / major release
+
+```nu
+# 1. Run cargo-rail to bump version, generate changelog, commit, and create tag
+cargo rail release run xtui --bump minor   # or --bump major
+
+# 2. cargo-rail creates tag as bare v0.3.0 (known bug — tag_format ignored)
+#    Delete wrong tag and create correct one:
+git tag -d v0.3.0
+git tag xtui-v0.3.0
+
+# 3. Publish to crates.io via 1Password plugin (must be run in nu):
+op plugin run -- cargo publish
+
+# 4. Push commit and tag:
+git push github main
+git push github xtui-v0.3.0
 ```
+
+Pushing `xtui-v*` tag triggers `release.yml` → git-cliff release notes + binary attached
+to GitHub release.
+
+### Known cargo-rail issue
+
+`tag_format = "{crate}-{prefix}{version}"` in `.config/rail.toml` is ignored — rail
+always creates bare `v{version}` tags. Manually delete and recreate as `xtui-v{version}`
+after every rail release run.
+
+### CI workflows
+
+- `.github/workflows/ci.yml` — fmt + clippy + nextest on every push/PR to `main`
+- `.github/workflows/tag.yml` — creates `xtui-v{version}` tag when `Cargo.toml` version
+  has patch == 0 (minor/major releases pushed without rail)
+- `.github/workflows/release.yml` — fires on `xtui-v*` tag; generates changelog,
+  builds binary, creates GitHub release
