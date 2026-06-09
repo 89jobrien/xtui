@@ -249,19 +249,48 @@ impl CommandSource for MakeSource {
         }
 
         let contents = std::fs::read_to_string(&makefile)?;
-        let re = regex::Regex::new(r"(?m)^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:")?;
+        let re = regex::Regex::new(r"^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:(?:[^=]|$)")?;
 
+        let lines: Vec<&str> = contents.lines().collect();
         let mut seen = std::collections::HashSet::new();
         let mut cmds = Vec::new();
-        for caps in re.captures_iter(&contents) {
+        for (i, line) in lines.iter().enumerate() {
+            let Some(caps) = re.captures(line) else {
+                continue;
+            };
             let name = caps[1].to_string();
-            if seen.insert(name.clone()) {
-                cmds.push(SourceCommand {
-                    name,
-                    description: None,
-                    source: "make".to_string(),
-                });
+            if !seen.insert(name.clone()) {
+                continue;
             }
+            // Inline ## comment on the target line takes priority.
+            let desc = if let Some(idx) = line.find("##") {
+                let s = line[idx + 2..].trim();
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s.to_string())
+                }
+            } else if i > 0 {
+                // Fall back to a ## comment on the immediately preceding line.
+                let prev = lines[i - 1].trim();
+                if let Some(rest) = prev.strip_prefix("##") {
+                    let s = rest.trim();
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            cmds.push(SourceCommand {
+                name,
+                description: desc,
+                source: "make".to_string(),
+            });
         }
         Ok(cmds)
     }
@@ -496,6 +525,28 @@ mod tests {
         assert!(cmds.iter().any(|c| c.name == "build"));
         assert!(cmds.iter().any(|c| c.name == "test"));
         assert!(cmds.iter().any(|c| c.name == "clean"));
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn make_source_parses_inline_and_preceding_descriptions() {
+        let tmp = std::env::temp_dir().join("xtui-test-make-desc");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        fs::write(
+            tmp.join("Makefile"),
+            "build: ## Compile the project\n\tcargo build\n\n## Run all tests\ntest:\n\tcargo test\n\nclean:\n\trm -rf target\n",
+        )
+        .unwrap();
+
+        let cmds = MakeSource.discover(&tmp).unwrap();
+        let build = cmds.iter().find(|c| c.name == "build").unwrap();
+        assert_eq!(build.description.as_deref(), Some("Compile the project"));
+        let test = cmds.iter().find(|c| c.name == "test").unwrap();
+        assert_eq!(test.description.as_deref(), Some("Run all tests"));
+        let clean = cmds.iter().find(|c| c.name == "clean").unwrap();
+        assert!(clean.description.is_none());
 
         let _ = fs::remove_dir_all(&tmp);
     }

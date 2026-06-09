@@ -286,7 +286,9 @@ Commands:
 
     #[test]
     fn skip_list_is_not_empty() {
-        assert!(!SKIP_HELP_PROBE.is_empty());
+        #[allow(clippy::const_is_empty)]
+        let not_empty = !SKIP_HELP_PROBE.is_empty();
+        assert!(not_empty);
         assert!(SKIP_HELP_PROBE.contains(&"alacritty"));
         assert!(SKIP_HELP_PROBE.contains(&"sccache"));
     }
