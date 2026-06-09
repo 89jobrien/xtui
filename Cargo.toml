@@ -1,6 +1,9 @@
+[workspace]
+members = [".", "xtask"]
+
 [package]
 name = "xtui"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 description = "TUI for discovering and running project commands (xtask, cargo, just, nu, npm, make, mise)"
 license = "MIT OR Apache-2.0"
