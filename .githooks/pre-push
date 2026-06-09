@@ -1,7 +1,10 @@
 #!/usr/bin/env nu
 
-# Pre-push: auto-bump patch version, amend outgoing commit.
-# Skips if patch == 0 (release commit — tag.yml handles those).
+# Pre-push: label and amend the outgoing commit.
+#
+# +patch  — auto-bumps 0.0.z and appends (+patch x.y.z)
+# +minor  — detects 0.y.0 bump, appends (+minor x.y.0), no version change
+# +major  — detects x.0.0 bump, appends (+major x.0.0), no version change
 
 let cargo_toml = "Cargo.toml"
 
@@ -14,29 +17,47 @@ let version = (
 )
 
 let parts = ($version | split row ".")
-let major = ($parts | get 0)
-let minor = ($parts | get 1)
+let major = ($parts | get 0 | into int)
+let minor = ($parts | get 1 | into int)
 let patch = ($parts | get 2 | into int)
 
-# patch == 0 means Claude set a release version — leave it alone
-if $patch == 0 {
+let msg = (git log -1 --format=%B | str trim)
+
+if $patch != 0 {
+    # Regular commit — bump patch and label
+    let new_version = $"($major).($minor).($patch + 1)"
+
+    open --raw $cargo_toml
+    | str replace $"version = \"($version)\"" $"version = \"($new_version)\""
+    | save --force $cargo_toml
+
+    cargo generate-lockfile
+
+    git add Cargo.toml Cargo.lock
+    git commit --amend -m $"($msg)\n\n\(+patch ($new_version)\)"
     exit 0
 }
 
-let next = ($patch + 1)
-let new_version = $"($major).($minor).($next)"
+# patch == 0 — release commit, detect minor vs major from last tag
+let last_tag = (
+    do { git describe --tags --match "xtui-v*" --abbrev=0 } | complete | get stdout | str trim
+)
 
-# Bump Cargo.toml
-open --raw $cargo_toml
-| str replace $"version = \"($version)\"" $"version = \"($new_version)\""
-| save --force $cargo_toml
+let label = if ($last_tag | is-empty) {
+    # No prior tag — treat as initial release, label by version shape
+    if $minor == 0 { "+major" } else { "+minor" }
+} else {
+    let prev = ($last_tag | str replace "xtui-v" "" | split row ".")
+    let prev_major = ($prev | get 0 | into int)
+    let prev_minor = ($prev | get 1 | into int)
+    if $major > $prev_major {
+        "+major"
+    } else if $minor > $prev_minor {
+        "+minor"
+    } else {
+        # Same major.minor — already tagged this version, nothing to do
+        exit 0
+    }
+}
 
-# Update Cargo.lock (fast — no compile)
-cargo generate-lockfile
-
-# Append marker to commit message and amend
-let msg = (git log -1 --format=%B | str trim)
-let new_msg = $"($msg)\n\n\(+patch ($new_version)\)"
-
-git add Cargo.toml Cargo.lock
-git commit --amend -m $new_msg
+git commit --amend -m $"($msg)\n\n\(($label) ($version)\)"
