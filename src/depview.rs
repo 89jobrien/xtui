@@ -14,6 +14,8 @@ pub struct DepInfo {
 pub enum DepFetchState {
     Loading,
     Ready,
+    /// Path or workspace dependency — no crates.io metadata available.
+    Local,
     Error(String),
 }
 
@@ -56,13 +58,24 @@ pub fn collect_direct_deps(project: &Path) -> Vec<DepInfo> {
             let dep = direct.krate;
             let key = format!("{}@{}", dep.name, dep.version);
             if seen.insert(key) {
+                // Detect local deps: workspace members have no source,
+                // path deps outside the workspace have a path+ source.
+                let is_local = dep
+                    .source
+                    .as_ref()
+                    .map(|s| s.repr.starts_with("path+"))
+                    .unwrap_or(true); // no source = workspace member
                 deps.push(DepInfo {
                     name: dep.name.clone(),
                     declared_version: dep.version.to_string(),
                     crates_io_latest: None,
-                    github_url: None,
+                    github_url: dep.repository.clone().or_else(|| dep.homepage.clone()),
                     versions_behind: None,
-                    state: DepFetchState::Loading,
+                    state: if is_local {
+                        DepFetchState::Local
+                    } else {
+                        DepFetchState::Loading
+                    },
                 });
             }
         }

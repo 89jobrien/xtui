@@ -458,6 +458,10 @@ impl App {
         let _ = std::fs::create_dir_all(cache_path.parent().unwrap_or(&cache_path));
 
         for stub in stubs {
+            // Local (path/workspace) deps have no crates.io metadata to fetch.
+            if matches!(stub.state, crate::depview::DepFetchState::Local) {
+                continue;
+            }
             let tx = tx.clone();
             let cache_path = cache_path.clone();
             tokio::spawn(async move {

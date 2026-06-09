@@ -328,6 +328,13 @@ pub(crate) fn format_dep_row(info: &crate::depview::DepInfo) -> String {
             "{:<30} {:<12} {:<12} {}",
             info.name, info.declared_version, "…", "…"
         ),
+        DepFetchState::Local => {
+            let repo = info.github_url.as_deref().unwrap_or("—");
+            format!(
+                "{:<30} {:<12} {:<12} {:<6} {}",
+                info.name, info.declared_version, "local", "—", repo
+            )
+        }
         DepFetchState::Error(e) => format!(
             "{:<30} {:<12} {:<12} err: {}",
             info.name, info.declared_version, "—", e
@@ -373,6 +380,7 @@ fn draw_dep_view(frame: &mut Frame, app: &App, area: Rect, focused: bool) {
         let row = format_dep_row(info);
         let style = match &info.state {
             DepFetchState::Loading => Style::default().fg(DIM),
+            DepFetchState::Local => Style::default().fg(Color::Cyan),
             DepFetchState::Error(_) => Style::default().fg(Color::Red),
             DepFetchState::Ready => {
                 if info.versions_behind.unwrap_or(0) > 0 {
@@ -528,5 +536,21 @@ mod tests {
         let row = format_dep_row(&info);
         assert!(row.contains("err:"));
         assert!(row.contains("timeout"));
+    }
+
+    #[test]
+    fn format_dep_row_local() {
+        let info = DepInfo {
+            name: "mylib".into(),
+            declared_version: "0.1.0".into(),
+            crates_io_latest: None,
+            github_url: Some("https://github.com/me/mylib".into()),
+            versions_behind: None,
+            state: DepFetchState::Local,
+        };
+        let row = format_dep_row(&info);
+        assert!(row.contains("mylib"));
+        assert!(row.contains("local"));
+        assert!(row.contains("https://github.com/me/mylib"));
     }
 }
