@@ -9,7 +9,7 @@
 let cargo_toml = "Cargo.toml"
 
 let version = (
-    open $cargo_toml
+    open --raw $cargo_toml
     | lines
     | where { |l| ($l | str starts-with "version = \"") }
     | first
