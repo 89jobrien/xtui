@@ -38,6 +38,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 
     draw_git_status_bar(frame, app, outer[0]);
 
+    let output_focused = app.focus == Focus::Output;
+
+    // Dep view takes the entire main area — it is not a command runner.
+    if app.show_dep_view {
+        draw_dep_view(frame, app, outer[1], output_focused);
+        draw_bottom_status(frame, app, outer[2]);
+        return;
+    }
+
     // Main area: left (tabs + commands) | right (desc + output/status)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -62,7 +71,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     app.output_height = right_chunks[1].height.saturating_sub(2);
 
     let cmd_focused = app.focus == Focus::Commands;
-    let output_focused = app.focus == Focus::Output;
 
     // Tab bar
     draw_tab_bar(frame, app, left_chunks[0]);
@@ -73,10 +81,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     // Description pane
     draw_description(frame, app, right_chunks[0]);
 
-    // Output, Dep, or Status pane
-    if app.show_dep_view {
-        draw_dep_view(frame, app, right_chunks[1], output_focused);
-    } else if app.show_status_tab {
+    // Output or Status pane
+    if app.show_status_tab {
         draw_status_tab(frame, app, right_chunks[1], output_focused);
     } else {
         draw_output(frame, app, right_chunks[1], output_focused);

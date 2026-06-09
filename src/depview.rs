@@ -26,7 +26,12 @@ pub fn collect_direct_deps(project: &Path) -> Vec<DepInfo> {
     }
     let mut cmd = krates::Cmd::new();
     cmd.manifest_path(&cargo_toml);
-    let Ok(graph) = krates::Builder::new().build(cmd, |_: krates::cm::Package| {}) else {
+    // Exclude dev and build deps — show only production (normal) dependencies.
+    // ignore_kind returns &mut Self so we must mutate then call build separately.
+    let mut builder = krates::Builder::new();
+    builder.ignore_kind(krates::DepKind::Dev, krates::Scope::All);
+    builder.ignore_kind(krates::DepKind::Build, krates::Scope::All);
+    let Ok(graph) = builder.build(cmd, |_: krates::cm::Package| {}) else {
         return vec![];
     };
     let graph: krates::Krates<krates::cm::Package> = graph;
