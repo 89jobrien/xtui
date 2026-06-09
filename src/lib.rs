@@ -1,3 +1,4 @@
+pub mod bin_schema;
 pub mod discover;
 pub mod history;
 pub mod pipeline;

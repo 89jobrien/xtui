@@ -18,37 +18,23 @@ fn just_source_with_descriptions() {
     // The exact format depends on just version, so just check we got commands
 }
 
+/// Uses the xtui workspace itself as a fixture — it has a [[bin]] target named "xtui".
+/// krates requires a real cargo workspace (runs `cargo metadata`), so we use a known project.
 #[test]
 fn cargo_source_with_bin_targets() {
-    let fix = ProjectFixture::new().with_cargo_toml(
-        r#"[package]
-name = "t"
-version = "0.1.0"
-edition = "2024"
-
-[[bin]]
-name = "mycli"
-path = "src/main.rs"
-
-[[bin]]
-name = "helper"
-path = "src/helper.rs"
-"#,
-    );
-
-    let cmds = CargoSource.discover(fix.path()).unwrap();
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let cmds = CargoSource.discover(root).unwrap();
     let names: Vec<&str> = cmds.iter().map(|c| c.name.as_str()).collect();
-    assert!(
-        names.contains(&"run --bin mycli"),
-        "missing 'run --bin mycli' in {names:?}"
-    );
-    assert!(
-        names.contains(&"run --bin helper"),
-        "missing 'run --bin helper' in {names:?}"
-    );
-    // Standard commands should also be present
+
+    // Standard commands always present
     assert!(names.contains(&"check"), "missing 'check' in {names:?}");
     assert!(names.contains(&"test"), "missing 'test' in {names:?}");
+
+    // xtui workspace has a [[bin]] named "xtui" (src/main.rs)
+    assert!(
+        names.contains(&"run --bin xtui"),
+        "missing 'run --bin xtui' in {names:?}"
+    );
 }
 
 #[test]

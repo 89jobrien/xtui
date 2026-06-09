@@ -10,3 +10,6 @@
 .ctx/HANDOFF.hj.hj.state.json
 .ctx/.initialized
 # handoff-end
+xtask/target/
+.claude/settings.local.json
+.ctx/HANDOFF.tools.yaml

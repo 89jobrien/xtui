@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::Result;
 
+use crate::bin_schema;
 use crate::discover::parse_source;
 
 /// A command discovered from a project's xtask or similar source.
@@ -68,11 +69,11 @@ impl CommandSource for CargoSource {
         "cargo"
     }
 
-    // qual:allow(iosp,dry) reason: "I/O boundary — filesystem check + TOML read + data construction are inseparable; inline struct construction is intentional"
     fn discover(&self, project: &Path) -> Result<Vec<SourceCommand>> {
         if !project.join("Cargo.toml").exists() {
             return Ok(vec![]);
         }
+
         let fixed = ["check", "build", "test", "clippy"];
         let mut cmds: Vec<SourceCommand> = fixed
             .iter()
@@ -83,18 +84,31 @@ impl CommandSource for CargoSource {
             })
             .collect();
 
-        // Parse [[bin]] entries from Cargo.toml for extra run targets
-        if let Ok(contents) = std::fs::read_to_string(project.join("Cargo.toml"))
-            && let Ok(doc) = contents.parse::<toml::Table>()
-            && let Some(bins) = doc.get("bin").and_then(|v| v.as_array())
-        {
-            for bin in bins {
-                if let Some(name) = bin.get("name").and_then(|v| v.as_str()) {
-                    cmds.push(SourceCommand {
-                        name: format!("run --bin {name}"),
-                        description: Some(format!("cargo run --bin {name}")),
-                        source: "cargo".to_string(),
-                    });
+        // Use krates to enumerate all binary targets across workspace members.
+        // krates requires the full resolve graph (no --no-deps equivalent).
+        let mut cmd = krates::Cmd::new();
+        cmd.manifest_path(project.join("Cargo.toml"));
+
+        if let Ok(graph) = krates::Builder::new().build(cmd, |_: krates::cm::Package| {}) {
+            let graph: krates::Krates<krates::cm::Package> = graph;
+            let mut seen = std::collections::HashSet::new();
+            for node in graph.workspace_members() {
+                if let krates::Node::Krate { krate, .. } = node {
+                    for target in &krate.targets {
+                        if target.is_bin() {
+                            let name = target.name.clone();
+                            if seen.insert(name.clone()) {
+                                cmds.push(SourceCommand {
+                                    name: format!("run --bin {name}"),
+                                    description: Some(format!(
+                                        "cargo run --bin {name} ({})",
+                                        krate.name
+                                    )),
+                                    source: "cargo".to_string(),
+                                });
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -321,7 +335,9 @@ impl CommandSource for CargoBinSource {
             return Ok(vec![]);
         }
 
+        let schema_dir = bin_schema::schema_dir();
         let mut cmds = Vec::new();
+
         for entry in std::fs::read_dir(&bin_dir)?.flatten() {
             let path = entry.path();
             if !path.is_file() {
@@ -338,14 +354,35 @@ impl CommandSource for CargoBinSource {
                     continue;
                 }
             }
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            let Some(bin_name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            // Skip hidden files (e.g. .DS_Store).
+            if bin_name.starts_with('.') {
+                continue;
+            }
+
+            let schema = bin_schema::get_schema(&schema_dir, bin_name);
+
+            if schema.subcommands.is_empty() {
+                // No known subcommands — list the bare binary.
                 cmds.push(SourceCommand {
-                    name: name.to_string(),
-                    description: Some(path.to_string_lossy().into_owned()),
+                    name: bin_name.to_string(),
+                    description: None,
                     source: "cargo-bin".to_string(),
                 });
+            } else {
+                // Emit one entry per subcommand: name = "<binary> <subcmd>".
+                for sub in &schema.subcommands {
+                    cmds.push(SourceCommand {
+                        name: format!("{bin_name} {}", sub.name),
+                        description: sub.description.clone(),
+                        source: "cargo-bin".to_string(),
+                    });
+                }
             }
         }
+
         cmds.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(cmds)
     }

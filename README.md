@@ -1,20 +1,21 @@
 # xtui
 
 A terminal UI for discovering and running project commands. Point it at any
-project directory and it finds runnable commands from 7 sources, organizes
+project directory and it finds runnable commands from 8 sources, organizes
 them into tabs, and lets you run them with live streaming output.
 
 ## Sources
 
-| Source | Detects                            | Runs via                      |
-| ------ | ---------------------------------- | ----------------------------- |
-| xtask  | `xtask/src/main.rs` match arms     | `cargo run -p xtask -- <cmd>` |
-| cargo  | `Cargo.toml` (+ `[[bin]]` targets) | `cargo <cmd>`                 |
-| just   | `Justfile` / `justfile`            | `just <recipe>`               |
-| nu     | `scripts/*.nu`                     | `nu scripts/<name>.nu`        |
-| npm    | `package.json` scripts             | `npm run <script>`            |
-| make   | `Makefile` targets                 | `make <target>`               |
-| mise   | `mise.toml` / `.mise.toml` tasks   | `mise run <task>`             |
+| Source    | Detects                            | Runs via                      |
+| --------- | ---------------------------------- | ----------------------------- |
+| xtask     | `xtask/src/main.rs` match arms     | `cargo run -p xtask -- <cmd>` |
+| cargo     | `Cargo.toml` (+ `[[bin]]` targets) | `cargo <cmd>`                 |
+| just      | `Justfile` / `justfile`            | `just <recipe>`               |
+| nu        | `scripts/*.nu`                     | `nu scripts/<name>.nu`        |
+| npm       | `package.json` scripts             | `npm run <script>`            |
+| make      | `Makefile` targets                 | `make <target>`               |
+| mise      | `mise.toml` / `.mise.toml` tasks   | `mise run <task>`             |
+| cargo-bin | `~/.cargo/bin/` executables        | `<binary>`                    |
 
 ## Usage
 
@@ -82,7 +83,7 @@ src/
   main.rs       Entry point, workspace resolution
   app.rs        App state, event loop, key handling
   ui.rs         Ratatui rendering (layout, tabs, output, status)
-  source.rs     CommandSource trait + 7 implementations
+  source.rs     CommandSource trait + 8 implementations
   discover.rs   Xtask main.rs parser (regex-based)
   runner.rs     Async process spawning and output streaming
   pipeline.rs   Sequential command chaining state machine

@@ -2,8 +2,8 @@
 
 ## What This Is
 
-TUI for discovering and running project commands from 7 sources (xtask, cargo,
-just, nu, npm, make, mise). Rust 2024 edition, ratatui-based.
+TUI for discovering and running project commands from 8 sources (xtask, cargo,
+just, nu, npm, make, mise, cargo-bin). Rust 2024 edition, ratatui-based.
 
 ## Build & Test
 
@@ -20,7 +20,7 @@ cargo xtask install           # install to ~/.cargo/bin
 
 ## Architecture
 
-- `src/source.rs` — `CommandSource` trait (port) with 7 implementations
+- `src/source.rs` — `CommandSource` trait (port) with 8 implementations
 - `src/discover.rs` — xtask main.rs parser, used by `XtaskSource`
 - `src/app.rs` — `App` struct owns all state, runs the event loop
 - `src/ui.rs` — pure rendering functions, no state mutation
