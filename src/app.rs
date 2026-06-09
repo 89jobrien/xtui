@@ -83,6 +83,10 @@ pub struct App {
     pub run_start: Option<std::time::Instant>,
     /// When `Some`, the app is in args-input mode. The string accumulates typed args.
     pub args_input: Option<String>,
+    pub show_dep_view: bool,
+    pub dep_infos: Vec<crate::depview::DepInfo>,
+    pub dep_scroll: u16,
+    pub dep_rx: Option<tokio::sync::mpsc::Receiver<crate::depview::DepInfo>>,
 }
 
 impl App {
@@ -110,6 +114,10 @@ impl App {
             pipeline: None,
             run_start: None,
             args_input: None,
+            show_dep_view: false,
+            dep_infos: Vec::new(),
+            dep_scroll: 0,
+            dep_rx: None,
         };
         app.discover_all();
         app
@@ -429,6 +437,50 @@ impl App {
         self.exit_code = None;
     }
 
+    pub fn toggle_dep_view(&mut self) {
+        self.show_dep_view = !self.show_dep_view;
+        if self.show_dep_view && self.dep_infos.is_empty() {
+            self.spawn_dep_fetch();
+        }
+    }
+
+    fn spawn_dep_fetch(&mut self) {
+        let stubs = crate::depview::collect_direct_deps(&self.workspace);
+        if stubs.is_empty() {
+            return;
+        }
+        self.dep_infos = stubs.clone();
+
+        let (tx, rx) = tokio::sync::mpsc::channel(64);
+        self.dep_rx = Some(rx);
+
+        let cache_path = crate::meta_cache::cache_path();
+        let _ = std::fs::create_dir_all(cache_path.parent().unwrap_or(&cache_path));
+
+        for stub in stubs {
+            let tx = tx.clone();
+            let cache_path = cache_path.clone();
+            tokio::spawn(async move {
+                let result =
+                    tokio::task::spawn_blocking(move || fetch_dep_info(stub, &cache_path)).await;
+                if let Ok(info) = result {
+                    let _ = tx.send(info).await;
+                }
+            });
+        }
+    }
+
+    pub fn poll_dep_results(&mut self) {
+        let Some(ref mut rx) = self.dep_rx else {
+            return;
+        };
+        while let Ok(info) = rx.try_recv() {
+            if let Some(entry) = self.dep_infos.iter_mut().find(|d| d.name == info.name) {
+                *entry = info;
+            }
+        }
+    }
+
     pub async fn run(&mut self) -> Result<()> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
@@ -445,6 +497,7 @@ impl App {
 
             terminal.draw(|frame| ui::draw(frame, &mut *self))?;
             self.poll_output();
+            self.poll_dep_results();
             self.advance_pipeline().await?;
 
             if event::poll(std::time::Duration::from_millis(EVENT_POLL_MS))?
@@ -512,11 +565,23 @@ impl App {
                     }
                     KeyCode::Char('j') | KeyCode::Down => match self.focus {
                         Focus::Commands => self.next(),
-                        Focus::Output => self.scroll_output_down(),
+                        Focus::Output => {
+                            if self.show_dep_view {
+                                self.dep_scroll = self.dep_scroll.saturating_add(1);
+                            } else {
+                                self.scroll_output_down();
+                            }
+                        }
                     },
                     KeyCode::Char('k') | KeyCode::Up => match self.focus {
                         Focus::Commands => self.previous(),
-                        Focus::Output => self.scroll_output_up(),
+                        Focus::Output => {
+                            if self.show_dep_view {
+                                self.dep_scroll = self.dep_scroll.saturating_sub(1);
+                            } else {
+                                self.scroll_output_up();
+                            }
+                        }
                     },
                     KeyCode::Char('g') if self.focus == Focus::Output => {
                         self.output_scroll = 0;
@@ -549,6 +614,7 @@ impl App {
                         self.focus = Focus::Output;
                     }
                     KeyCode::Char('P') => self.start_pipeline_from_selected(),
+                    KeyCode::Char('D') => self.toggle_dep_view(),
                     _ => {}
                 }
             }
@@ -558,6 +624,63 @@ impl App {
         execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
         Ok(())
     }
+}
+
+fn fetch_dep_info(
+    mut stub: crate::depview::DepInfo,
+    cache_path: &std::path::Path,
+) -> crate::depview::DepInfo {
+    use crate::depview::DepFetchState;
+    use crate::meta_cache::{CRATES_IO_TTL_SECS, CachedEntry, RedbCache};
+    use crate::meta_fetch::{HttpMetadataFetcher, MetadataFetcher, count_versions_behind};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let Ok(cache) = RedbCache::open(cache_path) else {
+        stub.state = DepFetchState::Error("cache unavailable".into());
+        return stub;
+    };
+
+    let mut cio_map = cache.get_crates_io_map().unwrap_or_default();
+    let entry = cio_map.get(&stub.name).cloned();
+    let fresh = entry
+        .as_ref()
+        .map(|e| !e.is_stale(CRATES_IO_TTL_SECS))
+        .unwrap_or(false);
+
+    let fetcher = HttpMetadataFetcher;
+
+    let meta = if fresh {
+        entry.unwrap()
+    } else {
+        match fetcher.fetch_crates_io(&stub.name) {
+            Ok(m) => {
+                let behind = count_versions_behind(&stub.declared_version, &m.versions);
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let e = CachedEntry {
+                    crates_io_latest: Some(m.latest_version.clone()),
+                    github_url: m.repository.clone(),
+                    versions_behind: behind,
+                    fetched_at: now,
+                };
+                cio_map.insert(stub.name.clone(), e.clone());
+                let _ = cache.set_crates_io_map(&cio_map);
+                e
+            }
+            Err(e) => {
+                stub.state = DepFetchState::Error(e.to_string());
+                return stub;
+            }
+        }
+    };
+
+    stub.crates_io_latest = meta.crates_io_latest;
+    stub.github_url = meta.github_url;
+    stub.versions_behind = meta.versions_behind;
+    stub.state = DepFetchState::Ready;
+    stub
 }
 
 #[cfg(test)]
@@ -753,6 +876,16 @@ mod tests {
         // (can't spawn a real task in a sync test; verify guard via task = None path)
         app.start_args_input();
         assert!(app.args_input.is_some());
+    }
+
+    #[tokio::test]
+    async fn toggle_dep_view_sets_flag() {
+        let mut app = App::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        assert!(!app.show_dep_view);
+        app.toggle_dep_view();
+        assert!(app.show_dep_view);
+        app.toggle_dep_view();
+        assert!(!app.show_dep_view);
     }
 
     #[test]

@@ -5,7 +5,10 @@ mod ui;
 // Only modules directly referenced in app.rs/ui.rs are listed here;
 // discover and registry are used internally by the lib and need no re-export.
 use xtui as xtui_lib;
+pub(crate) use xtui_lib::depview;
 pub(crate) use xtui_lib::history;
+pub(crate) use xtui_lib::meta_cache;
+pub(crate) use xtui_lib::meta_fetch;
 pub(crate) use xtui_lib::pipeline;
 pub(crate) use xtui_lib::runner;
 pub(crate) use xtui_lib::search;
