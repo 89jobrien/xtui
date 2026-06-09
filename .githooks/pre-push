@@ -1,0 +1,42 @@
+#!/usr/bin/env nu
+
+# Pre-push: auto-bump patch version, amend outgoing commit.
+# Skips if patch == 0 (release commit — tag.yml handles those).
+
+let cargo_toml = "Cargo.toml"
+
+let version = (
+    open $cargo_toml
+    | lines
+    | where { |l| ($l | str starts-with "version = \"") }
+    | first
+    | str replace --regex '^version = "(.+)"$' '$1'
+)
+
+let parts = ($version | split row ".")
+let major = ($parts | get 0)
+let minor = ($parts | get 1)
+let patch = ($parts | get 2 | into int)
+
+# patch == 0 means Claude set a release version — leave it alone
+if $patch == 0 {
+    exit 0
+}
+
+let next = ($patch + 1)
+let new_version = $"($major).($minor).($next)"
+
+# Bump Cargo.toml
+open --raw $cargo_toml
+| str replace $"version = \"($version)\"" $"version = \"($new_version)\""
+| save --force $cargo_toml
+
+# Update Cargo.lock (fast — no compile)
+cargo generate-lockfile
+
+# Append marker to commit message and amend
+let msg = (git log -1 --format=%B | str trim)
+let new_msg = $"($msg)\n\n\(+patch ($new_version)\)"
+
+git add Cargo.toml Cargo.lock
+git commit --amend -m $new_msg
