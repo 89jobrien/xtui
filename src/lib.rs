@@ -3,6 +3,7 @@ pub mod depview;
 pub mod discover;
 pub mod history;
 pub mod meta_cache;
+pub mod meta_fetch;
 pub mod pipeline;
 pub mod registry;
 pub mod runner;
