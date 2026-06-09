@@ -1,0 +1,49 @@
+[[copy]]
+dest = "guide"
+files = [
+    "README.md:readme.md",
+    "CONTRIBUTING.md:contributing.md",
+    "DEPLOYMENT.md:deployment.md",
+    "CHANGELOG.md:changelog.md",
+    "CLAUDE.md:claude.md",
+    "AGENTS.md:agents.md",
+]
+
+[[copy]]
+dest = "architecture"
+files = [
+    "ARCHITECTURE.md:architecture.md",
+]
+
+[[copy]]
+dest = "plans"
+files = [
+    "docs/plans/*.md",
+]
+
+[[copy]]
+dest = "context/memory-bank"
+files = [
+    ".ctx/memory-bank/project-brief.md:project-brief.md",
+    ".ctx/memory-bank/product-context.md:product-context.md",
+    ".ctx/memory-bank/tech-context.md:tech-context.md",
+    ".ctx/memory-bank/system-patterns.md:system-patterns.md",
+    ".ctx/memory-bank/active-context.md:active-context.md",
+    ".ctx/memory-bank/progress.md:progress.md",
+    ".ctx/memory-bank/mistakes.md:mistakes.md",
+    ".ctx/memory-bank/patterns.md:patterns.md",
+]
+
+[[copy]]
+dest = "knowledge/summary"
+files = [
+    ".kgx/wiki/summary/xtui-architecture-summary.md:xtui-architecture-summary.md",
+    ".kgx/wiki/summary/xtui-release-process.md:xtui-release-process.md",
+    ".kgx/wiki/summary/dep-view-feature.md:dep-view-feature.md",
+]
+
+[[copy]]
+dest = "knowledge/entity"
+files = [
+    ".kgx/wiki/entity/commandsource.md:commandsource.md",
+]

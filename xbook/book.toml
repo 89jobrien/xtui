@@ -1,0 +1,17 @@
+[book]
+title = "xtui"
+authors = ["Joseph O'Brien"]
+language = "en"
+src = "."
+
+[build]
+build-dir = "dist"
+
+[output.html]
+git-repository-url = "https://github.com/89jobrien/xtui"
+edit-url-template = "https://github.com/89jobrien/xtui/edit/main/{path}"
+no-section-label = false
+
+[output.html.fold]
+enable = true
+level = 1

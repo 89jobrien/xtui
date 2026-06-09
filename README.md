@@ -89,6 +89,23 @@ cargo test
 cargo test -- --ignored
 ```
 
+## Docs
+
+```sh
+# Build only → xbook/dist/
+cargo xtask docs
+
+# Build and serve (opens browser)
+cargo xtask book
+```
+
+Reads [`xbook/copies.toml`](xbook/copies.toml) to copy source files (README,
+CLAUDE.md, design plans, memory bank, knowledge graph wiki) into `xbook/`, then
+builds an [mdbook](https://rust-lang.github.io/mdBook/) at `xbook/dist/`. The
+source files stay in their canonical locations in the repo — `xbook/` holds only
+generated copies and built output (both gitignored). Requires `mdbook`
+(`cargo install mdbook`).
+
 ## Project Structure
 
 ```
@@ -109,7 +126,14 @@ src/
   meta_fetch.rs   MetadataFetcher port + HttpMetadataFetcher adapter
   registry.rs     Project discovery and cache (unused in v1)
 xtask/
-  src/main.rs   Dev tasks: check, test, clippy, install
+  src/main.rs   Dev tasks: check, test, clippy, install, docs, book
+xbook/
+  book.toml     mdbook config (src = ".", build-dir = "dist")
+  copies.toml   Declares which files to copy into xbook/ (supports globs)
+  SUMMARY.md    mdbook table of contents (tracked)
+  intro.md      Book introduction page (tracked)
+  */            Generated copies of source files (gitignored)
+  dist/         Built HTML output (gitignored)
 tests/
   common/       Shared fixture builder
   integration.rs  Cross-module integration tests

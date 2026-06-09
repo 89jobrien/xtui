@@ -18,6 +18,7 @@ cargo xtask check             # workspace check
 cargo xtask test              # workspace test
 cargo xtask clippy            # workspace clippy -D warnings
 cargo xtask install           # install to ~/.cargo/bin
+cargo xtask docs              # copy sources + build mdbook → xbook/dist/
 ```
 
 ## Architecture
