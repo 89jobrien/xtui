@@ -38,7 +38,9 @@ xtui --path /path/to/project
 | `Tab` / `Shift+Tab` | Cycle source tabs                             |
 | `1`-`9`             | Jump to tab by index                          |
 | `Enter`             | Run selected command                          |
+| `a`                 | Open args-input mode (enter args before run)  |
 | `o`                 | Focus output pane                             |
+| `g` / `G`           | Scroll output to top / bottom (output focus)  |
 | `Esc`               | Cancel running command / exit output focus    |
 | `Ctrl+C`            | Cancel running command or quit                |
 | `/`                 | Search output                                 |
@@ -88,17 +90,18 @@ cargo test -- --ignored
 
 ```
 src/
-  main.rs       Entry point, workspace resolution
-  app.rs        App state, event loop, key handling
-  ui.rs         Ratatui rendering (layout, tabs, output, status)
-  source.rs     CommandSource trait + 8 implementations
-  discover.rs   Xtask main.rs parser (regex-based)
-  runner.rs     Async process spawning and output streaming
-  pipeline.rs   Sequential command chaining state machine
-  search.rs     Output search with match tracking
-  history.rs    Run history and output log persistence
-  status.rs     Git status collection
-  registry.rs   Project discovery and cache (unused in v1)
+  main.rs         Entry point, workspace resolution
+  app.rs          App state, event loop, key handling
+  ui.rs           Ratatui rendering (layout, tabs, output, status)
+  source.rs       CommandSource trait + 8 implementations
+  discover.rs     Xtask main.rs parser (regex-based)
+  bin_schema.rs   Cargo-bin subcommand cache (JSON, mtime-invalidated)
+  runner.rs       Async process spawning and output streaming
+  pipeline.rs     Sequential command chaining state machine
+  search.rs       Output search with match tracking
+  history.rs      Run history and output log persistence
+  status.rs       Git status collection
+  registry.rs     Project discovery and cache (unused in v1)
 xtask/
   src/main.rs   Dev tasks: check, test, clippy, install
 tests/

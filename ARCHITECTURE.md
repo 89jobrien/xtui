@@ -46,7 +46,7 @@ pub trait CommandSource: Send + Sync {
 | 0   | xtask     | `xtask/src/main.rs`        | `cargo run -p xtask -- <cmd>` |
 | 1   | cargo     | `Cargo.toml`               | `cargo <cmd>`                 |
 | 2   | just      | `Justfile` / `justfile`    | `just <recipe>`               |
-| 3   | nu-script | `scripts/*.nu`             | `nu scripts/<name>.nu`        |
+| 3   | nu        | `scripts/*.nu`             | `nu scripts/<name>.nu`        |
 | 4   | npm       | `package.json` scripts     | `npm run <script>`            |
 | 5   | make      | `Makefile`                 | `make <target>`               |
 | 6   | mise      | `mise.toml` / `.mise.toml` | `mise run <task>`             |
@@ -109,6 +109,32 @@ The caller handles actual execution — pipeline only tracks state.
 
 Output pane auto-scrolls to bottom; focusable for manual scroll. Flash messages replace
 the status bar for 2 seconds. Args-input mode overlays a modal prompt before run.
+
+## Key Bindings
+
+| Key               | Context        | Action                                         |
+| ----------------- | -------------- | ---------------------------------------------- |
+| `Tab`/`Shift+Tab` | Commands focus | Cycle source tabs                              |
+| `1`-`9`           | Commands focus | Jump to tab by index                           |
+| `j` / `Down`      | Commands focus | Next command                                   |
+| `k` / `Up`        | Commands focus | Previous command                               |
+| `Enter`           | Commands focus | Run selected command                           |
+| `a`               | Commands focus | Open args-input mode                           |
+| `o`               | Any            | Focus output pane                              |
+| `j` / `Down`      | Output focus   | Scroll down                                    |
+| `k` / `Up`        | Output focus   | Scroll up                                      |
+| `g`               | Output focus   | Scroll to top                                  |
+| `G`               | Output focus   | Scroll to bottom                               |
+| `n` / `N`         | Output focus   | Next / previous search match                   |
+| `Tab` / `Enter`   | Output focus   | Return to Commands focus                       |
+| `/`               | Any            | Start output search                            |
+| `s`               | Any            | Toggle git status tab                          |
+| `r`               | Any            | Refresh commands                               |
+| `c`               | Any            | Copy output to clipboard (OSC52)               |
+| `P`               | Any            | Run all tab commands as pipeline               |
+| `Esc`             | Any            | Cancel task / close search / exit output focus |
+| `Ctrl+C`          | Any            | Cancel task or quit                            |
+| `q`               | Any            | Quit                                           |
 
 ## Key Design Decisions
 
