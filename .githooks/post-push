@@ -1,0 +1,40 @@
+#!/usr/bin/env nu
+
+# Post-push: push the release tag created by cargo-rail.
+#
+# Fires after a successful push. If the current version has patch == 0
+# and the tag exists locally but not on the remote, push it.
+
+let cargo_toml = "Cargo.toml"
+
+let version = (
+    open --raw $cargo_toml
+    | lines
+    | where { |l| ($l | str starts-with "version = \"") }
+    | first
+    | str replace --regex '^version = "(.+)"$' '$1'
+)
+
+let patch = ($version | split row "." | get 2 | into int)
+
+if $patch != 0 {
+    exit 0
+}
+
+let tag = $"v($version)"
+
+# Check if tag exists locally
+let local_tag = (do { git rev-parse $tag } | complete | get exit_code)
+if $local_tag != 0 {
+    exit 0
+}
+
+# Check if tag already on remote
+let remote_tag = (
+    do { git ls-remote --tags github $"refs/tags/($tag)" } | complete | get stdout | str trim
+)
+if ($remote_tag | is-not-empty) {
+    exit 0
+}
+
+git push github $tag
