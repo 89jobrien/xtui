@@ -1,4 +1,6 @@
-# CLAUDE.md — xtui
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What This Is
 
@@ -22,6 +24,7 @@ cargo xtask install           # install to ~/.cargo/bin
 
 - `src/source.rs` — `CommandSource` trait (port) with 8 implementations
 - `src/discover.rs` — xtask main.rs parser, used by `XtaskSource`
+- `src/bin_schema.rs` — cargo-bin subcommand cache (JSON, mtime-invalidated)
 - `src/app.rs` — `App` struct owns all state, runs the event loop
 - `src/ui.rs` — pure rendering functions, no state mutation
 - `src/runner.rs` — async process spawning via tokio, streams stdout/stderr
@@ -46,3 +49,15 @@ cargo xtask install           # install to ~/.cargo/bin
 - Pipeline is a pure state machine — caller handles actual execution
 - History caps at 50 entries, logs cap at 100 files per project
 - `registry.rs` is `#[allow(dead_code)]` — reserved for future project picker
+- Use `chore` or `refactor` commit types for quality passes — not `quality` (git-cliff drops unknown types)
+
+## Release
+
+See `DEPLOYMENT.md` for the full release process. Short version:
+
+```sh
+# 1. Bump version in Cargo.toml
+# 2. git tag vx.y.z && git push github main && git push github vx.y.z
+# 3. Run the nu release script (see DEPLOYMENT.md) to create GitHub release
+# 4. cargo publish --allow-dirty
+```
