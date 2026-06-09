@@ -1,5 +1,7 @@
 # xtui
 
+[![crates.io](https://img.shields.io/crates/v/xtui.svg)](https://crates.io/crates/xtui)
+
 A terminal UI for discovering and running project commands. Point it at any
 project directory and it finds runnable commands from 8 sources, organizes
 them into tabs, and lets you run them with live streaming output.
@@ -57,7 +59,13 @@ xtui --path /path/to/project
 - **History**: last 50 runs per project saved to `~/.config/xtui/history/`
 - **Output logs**: command output persisted as `.log` files (max 100 per project)
 
-## Building
+## Install
+
+```sh
+cargo install xtui
+```
+
+## Building from source
 
 ```sh
 cargo build --release
