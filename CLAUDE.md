@@ -68,35 +68,17 @@ Every push to `main` triggers `.githooks/pre-push`, which:
 ### Minor / major release
 
 ```nu
-# 1. Run cargo-rail to bump version, generate changelog, commit, and create tag
-cargo rail release run xtui --bump minor   # or --bump major
-
-# 2. cargo-rail creates tag as bare v0.3.0 (known bug — tag_format ignored)
-#    Delete wrong tag and create correct one:
-git tag -d v0.3.0
-git tag xtui-v0.3.0
-
-# 3. Publish to crates.io via 1Password plugin (must be run in nu):
-op plugin run -- cargo publish
-
-# 4. Push commit and tag:
+# Bump version, generate changelog, commit, tag, then push:
+cargo rail release run xtui --bump minor --skip-publish
 git push github main
-git push github xtui-v0.3.0
+git push github v0.3.0
 ```
 
-Pushing `xtui-v*` tag triggers `release.yml` → git-cliff release notes + binary attached
-to GitHub release.
-
-### Known cargo-rail issue
-
-`tag_format = "{crate}-{prefix}{version}"` in `.config/rail.toml` is ignored — rail
-always creates bare `v{version}` tags. Manually delete and recreate as `xtui-v{version}`
-after every rail release run.
+Pushing the `v*` tag triggers `release.yml` → git-cliff release notes, binary, GitHub
+release, and `cargo publish` via `CARGO_REGISTRY_TOKEN` secret.
 
 ### CI workflows
 
 - `.github/workflows/ci.yml` — fmt + clippy + nextest on every push/PR to `main`
-- `.github/workflows/tag.yml` — creates `xtui-v{version}` tag when `Cargo.toml` version
-  has patch == 0 (minor/major releases pushed without rail)
-- `.github/workflows/release.yml` — fires on `xtui-v*` tag; generates changelog,
-  builds binary, creates GitHub release
+- `.github/workflows/release.yml` — fires on `v*` tag; generates changelog, builds
+  binary, creates GitHub release, publishes to crates.io
