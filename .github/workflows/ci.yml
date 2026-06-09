@@ -37,7 +37,7 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: nextest,just
 
       - name: test
         run: cargo nextest run --workspace
