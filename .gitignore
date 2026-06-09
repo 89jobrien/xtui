@@ -13,3 +13,4 @@
 xtask/target/
 .claude/settings.local.json
 .ctx/HANDOFF.tools.yaml
+.config/
