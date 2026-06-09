@@ -5,6 +5,10 @@ edition = "2024"
 description = "TUI for discovering and running project commands (xtask, cargo, just, nu, npm, make, mise)"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
+repository = "https://github.com/89jobrien/xtui"
+readme = "README.md"
+keywords = ["tui", "cli", "cargo", "xtask", "productivity"]
+categories = ["command-line-utilities", "development-tools"]
 
 [lib]
 path = "src/lib.rs"
