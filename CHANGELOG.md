@@ -1,5 +1,18 @@
 ## [unreleased]
 
+## [0.4.0] - 2026-06-09
+
+### 👷 CI
+
+- remove tag.yml — rail owns tagging (85da28d)
+- fix release trigger to v*, disable tag.yml, clean release docs (5347f40)
+
+### 📝 Documentation
+
+- document release process with cargo-rail, op plugin, tag fix (ea9474b)
+
+
+
 ## [0.3.0] - 2026-06-09
 
 ### ✨ Features
