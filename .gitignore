@@ -2,6 +2,8 @@
 
 # handoff-begin
 .ctx/*
+!.ctx/memory-bank/
+!.ctx/memory-bank/*.md
 !.ctx/HANDOFF.*.yaml
 .ctx/HANDOFF.godmode.*.yaml
 .ctx/HANDOFF.*.state.json
@@ -14,3 +16,13 @@ xtask/target/
 .claude/settings.local.json
 .ctx/HANDOFF.tools.yaml
 .config/
+xbook/dist/
+.kgx/data/
+.kgx/**/.DS_Store
+.kgx/wiki/index.md
+.kgx/wiki/log.md
+xbook/guide/
+xbook/architecture/
+xbook/plans/
+xbook/context/
+xbook/knowledge/
