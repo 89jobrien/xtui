@@ -23,6 +23,9 @@ CLI args -> find_workspace_root -> all_sources() -> App::new -> App::run (event 
 | `search.rs`     | Output search with match cycling                              |
 | `history.rs`    | JSON history + `.log` files in `~/.config/xtui/`              |
 | `status.rs`     | Git status via `Command::new("git")`                          |
+| `depview.rs`    | Dep graph domain types; `collect_direct_deps` via krates      |
+| `meta_cache.rs` | `MetadataCache` port + `RedbCache` adapter (redb, TTL-based)  |
+| `meta_fetch.rs` | `MetadataFetcher` port + `HttpMetadataFetcher` adapter (ureq) |
 | `registry.rs`   | Project scanner/cache (not wired into UI — reserved)          |
 
 Each module owns exactly one concern. No cross-module state mutation.
@@ -129,6 +132,7 @@ the status bar for 2 seconds. Args-input mode overlays a modal prompt before run
 | `Tab` / `Enter`   | Output focus   | Return to Commands focus                       |
 | `/`               | Any            | Start output search                            |
 | `s`               | Any            | Toggle git status tab                          |
+| `D`               | Any            | Toggle dependency graph view                   |
 | `r`               | Any            | Refresh commands                               |
 | `c`               | Any            | Copy output to clipboard (OSC52)               |
 | `P`               | Any            | Run all tab commands as pipeline               |

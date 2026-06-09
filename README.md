@@ -46,6 +46,7 @@ xtui --path /path/to/project
 | `/`                 | Search output                                 |
 | `n` / `N`           | Next / previous search match                  |
 | `s`                 | Toggle git status tab                         |
+| `D`                 | Toggle dependency graph view                  |
 | `r`                 | Refresh commands                              |
 | `c`                 | Copy output to clipboard (OSC 52)             |
 | `P`                 | Run all commands in current tab as a pipeline |
@@ -57,6 +58,8 @@ xtui --path /path/to/project
 - **Live output**: stdout/stderr streamed in real time with ANSI color support
 - **Git status bar**: branch, dirty/clean, ahead/behind, recent commits
 - **Output search**: incremental case-insensitive search with match cycling
+- **Dep view**: toggle with `D` to see direct workspace dependencies with crates.io latest version
+  and versions-behind count, cached globally in redb
 - **Pipelines**: run all commands in a tab sequentially, stop on failure
 - **History**: last 50 runs per project saved to `~/.config/xtui/history/`
 - **Output logs**: command output persisted as `.log` files (max 100 per project)
@@ -101,6 +104,9 @@ src/
   search.rs       Output search with match tracking
   history.rs      Run history and output log persistence
   status.rs       Git status collection
+  depview.rs      Dep graph domain types and workspace dep collection
+  meta_cache.rs   Metadata cache port + RedbCache adapter
+  meta_fetch.rs   MetadataFetcher port + HttpMetadataFetcher adapter
   registry.rs     Project discovery and cache (unused in v1)
 xtask/
   src/main.rs   Dev tasks: check, test, clippy, install
