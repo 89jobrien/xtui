@@ -73,8 +73,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     // Description pane
     draw_description(frame, app, right_chunks[0]);
 
-    // Output or Status pane
-    if app.show_status_tab {
+    // Output, Dep, or Status pane
+    if app.show_dep_view {
+        draw_dep_view(frame, app, right_chunks[1], output_focused);
+    } else if app.show_status_tab {
         draw_status_tab(frame, app, right_chunks[1], output_focused);
     } else {
         draw_output(frame, app, right_chunks[1], output_focused);
@@ -313,6 +315,88 @@ fn draw_status_tab(frame: &mut Frame, app: &App, area: Rect, focused: bool) {
     frame.render_widget(status_tab, area);
 }
 
+pub(crate) fn format_dep_row(info: &crate::depview::DepInfo) -> String {
+    use crate::depview::DepFetchState;
+    match &info.state {
+        DepFetchState::Loading => format!(
+            "{:<30} {:<12} {:<12} {}",
+            info.name, info.declared_version, "…", "…"
+        ),
+        DepFetchState::Error(e) => format!(
+            "{:<30} {:<12} {:<12} err: {}",
+            info.name, info.declared_version, "—", e
+        ),
+        DepFetchState::Ready => {
+            let latest = info.crates_io_latest.as_deref().unwrap_or("—");
+            let behind = info
+                .versions_behind
+                .map(|n| {
+                    if n == 0 {
+                        "✓".to_string()
+                    } else {
+                        n.to_string()
+                    }
+                })
+                .unwrap_or_else(|| "—".to_string());
+            let repo = info.github_url.as_deref().unwrap_or("—");
+            format!(
+                "{:<30} {:<12} {:<12} {:<6} {}",
+                info.name, info.declared_version, latest, behind, repo
+            )
+        }
+    }
+}
+
+fn draw_dep_view(frame: &mut Frame, app: &App, area: Rect, focused: bool) {
+    use crate::depview::DepFetchState;
+
+    let header = format!(
+        "{:<30} {:<12} {:<12} {:<6} {}",
+        "Name", "Declared", "Latest", "Behind", "Repo"
+    );
+
+    let mut lines: Vec<Line> = vec![
+        Line::styled(
+            header,
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        Line::raw(""),
+    ];
+
+    for info in &app.dep_infos {
+        let row = format_dep_row(info);
+        let style = match &info.state {
+            DepFetchState::Loading => Style::default().fg(DIM),
+            DepFetchState::Error(_) => Style::default().fg(Color::Red),
+            DepFetchState::Ready => {
+                if info.versions_behind.unwrap_or(0) > 0 {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default().fg(Color::Green)
+                }
+            }
+        };
+        lines.push(Line::styled(row, style));
+    }
+
+    let count = app.dep_infos.len();
+    let panel = Paragraph::new(Text::from(lines))
+        .block(
+            Block::bordered()
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(border_color(focused, DIM)))
+                .title(format!(" Deps [{}] ", count))
+                .title_style(
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((app.dep_scroll, 0));
+    frame.render_widget(panel, area);
+}
+
 fn draw_bottom_status(frame: &mut Frame, app: &App, area: Rect) {
     // Args-input mode overrides the normal status bar.
     if let Some(ref buf) = app.args_input {
@@ -345,7 +429,9 @@ fn draw_bottom_status(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let focus_hint = match app.focus {
-        Focus::Commands => "Tab:source  1-9:tab  Enter:run  a:args  /:search  s:status  P:pipeline",
+        Focus::Commands => {
+            "Tab:source  1-9:tab  Enter:run  a:args  /:search  s:status  D:deps  P:pipeline"
+        }
         Focus::Output => "j/k:scroll  g/G:top/bottom  n/N:search  Esc:back",
     };
 
@@ -371,4 +457,70 @@ fn draw_bottom_status(frame: &mut Frame, app: &App, area: Rect) {
     };
     let status = Paragraph::new(status_text).style(status_style);
     frame.render_widget(status, area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::depview::{DepFetchState, DepInfo};
+
+    #[test]
+    fn format_dep_row_ready() {
+        let info = DepInfo {
+            name: "serde".into(),
+            declared_version: "1.0.0".into(),
+            crates_io_latest: Some("1.0.200".into()),
+            github_url: Some("https://github.com/serde-rs/serde".into()),
+            versions_behind: Some(5),
+            state: DepFetchState::Ready,
+        };
+        let row = format_dep_row(&info);
+        assert!(row.contains("serde"));
+        assert!(row.contains("1.0.0"));
+        assert!(row.contains("1.0.200"));
+        assert!(row.contains("5"));
+    }
+
+    #[test]
+    fn format_dep_row_loading() {
+        let info = DepInfo {
+            name: "tokio".into(),
+            declared_version: "1".into(),
+            crates_io_latest: None,
+            github_url: None,
+            versions_behind: None,
+            state: DepFetchState::Loading,
+        };
+        let row = format_dep_row(&info);
+        assert!(row.contains("…"));
+    }
+
+    #[test]
+    fn format_dep_row_zero_behind_shows_checkmark() {
+        let info = DepInfo {
+            name: "anyhow".into(),
+            declared_version: "1.0.95".into(),
+            crates_io_latest: Some("1.0.95".into()),
+            github_url: None,
+            versions_behind: Some(0),
+            state: DepFetchState::Ready,
+        };
+        let row = format_dep_row(&info);
+        assert!(row.contains("✓"));
+    }
+
+    #[test]
+    fn format_dep_row_error() {
+        let info = DepInfo {
+            name: "bad-crate".into(),
+            declared_version: "0.1.0".into(),
+            crates_io_latest: None,
+            github_url: None,
+            versions_behind: None,
+            state: DepFetchState::Error("timeout".into()),
+        };
+        let row = format_dep_row(&info);
+        assert!(row.contains("err:"));
+        assert!(row.contains("timeout"));
+    }
 }
