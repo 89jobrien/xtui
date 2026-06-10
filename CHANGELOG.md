@@ -4,6 +4,19 @@
 
 - Dev-state session metadata file with xtask, pre-push, and SessionStart refresh
 - Add --verify mode to dev-state with commit/branch/version checks
+- Dev-state session metadata with hash-based push gate and crate versions
+
+### Bug Fixes
+
+- Refresh dev-state before gate check in pre-push hook
+
+### Refactor
+
+- Derive session_id from project/pid/timestamp, drop session-init wrapper
+
+### Testing
+
+- Verify pre-push gate end-to-end
 
 ### Miscellaneous Tasks
 

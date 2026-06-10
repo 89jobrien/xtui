@@ -102,9 +102,25 @@ States: Idle → Running(idx) → Done | Failed(idx).
 | n/N     | Next/prev search match         |
 | q       | Quit                           |
 
+## Dev-State (scripts/dev-state.nu)
+
+Local session metadata file at `.ctx/dev-state.json` (gitignored). Two modes:
+
+```
+cargo xtask dev-state           # generate: write all fields, two-pass for mtime
+cargo xtask dev-state --verify  # verify: recompute ground-truth fields, exit 1 if mismatch
+```
+
+Session identity: `session_id = "{project}-{pid}-{YYMMDD.HHMMSS}"` (fully derived).
+`session_hash` = sha256 of `session_id + workspace_root + hostname + username` — stable
+across refreshes within a session, changes on new session.
+
+Pre-push hook order: refresh → verify → version bump + amend → refresh again.
+
 ## Conventions
 
 - Custom base64 encoder (no external dep) for OSC52 clipboard
 - `anyhow::Result` throughout for error propagation
 - Sources return empty vec, never error, when not applicable to a project
 - Commit types: `chore`/`refactor` for quality passes (not `quality` — git-cliff drops it)
+- `xtask` is always version `0.0.0` — internal tool, not published

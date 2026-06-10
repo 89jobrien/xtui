@@ -44,12 +44,22 @@ cargo xtask install       # install to ~/.cargo/bin
 - Branch pipeline: develop → staging → main (automated promotion)
 
 ## Release
-- Patch: auto-bumped by `.githooks/pre-push` on every push to main
+- Patch: auto-bumped by `.githooks/pre-push`; rc suffix stripped before bump
 - Minor/major: `cargo rail release run xtui --bump minor --skip-publish`
   then `git push github main && git push github v0.X.0`
 - Config: `.config/rail.toml`
 - `xbook/**` classified as infrastructure (does not trigger build+test)
 - `.githooks/`: pre-push, post-push, pre-commit, commit-msg, prepare-commit-msg
+
+## Dev-State
+- `scripts/dev-state.nu` — generates/verifies `.ctx/dev-state.json`
+- `.claude/settings.json` — SessionStart hook: `cargo xtask dev-state`
+- `cargo xtask dev-state` — refresh; `cargo xtask dev-state --verify` — gate check
+- Fields: timestamp, session_id (`{project}-{pid}-{YYMMDD.HHMMSS}`), session_hash
+  (sha256), claude_session_pid, project, workspace_root, hostname, username, branch,
+  commit, commit_msg, version, dirty, dirty_files, crate_versions, mtime
+- Verifiable fields: commit, branch, version, commit_msg, session_hash, mtime
+- pre-push hook: refresh → verify → amend → refresh (gate blocks on any mismatch)
 
 ## Structure
 

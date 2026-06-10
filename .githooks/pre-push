@@ -25,6 +25,13 @@ let version = (
     | str replace --regex '^version = "(.+)"$' '$1'
 )
 
+# Cross-check: Cargo.toml version must match dev-state crate_versions.xtui
+let state_version = (open .ctx/dev-state.json | get crate_versions.xtui)
+if $state_version != $version {
+    print $"Push blocked: version drift detected — Cargo.toml=($version) dev-state=($state_version). Run `cargo xtask dev-state` to resync."
+    exit 1
+}
+
 let parts = ($version | split row ".")
 let major = ($parts | get 0 | into int)
 let minor = ($parts | get 1 | into int)

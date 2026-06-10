@@ -11,7 +11,7 @@ Also shows a dep view (D key) with direct dependency metadata from crates.io.
 
 Joseph O'Brien (89jobrien). Solo project.
 
-## Current version: 0.4.5-rc.1 (develop branch)
+## Current version: 0.4.10 (develop branch)
 
 ## Done Criteria (v0.4.5-rc.1 — complete)
 

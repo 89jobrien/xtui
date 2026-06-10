@@ -1,7 +1,7 @@
 ---
 version: 1
-last_updated: 2026-06-09 (session 2)
-next_review: 2026-06-16
+last_updated: 2026-06-10
+next_review: 2026-06-17
 ---
 
 # Recurring Mistakes Ledger
@@ -82,6 +82,20 @@ _No patterns detected yet._
 ## Hook False Positives
 
 _No patterns detected yet._
+
+## Hook Ordering
+
+### Gate check placed before refresh — always blocked on first push
+
+- **Occurrences**: 1
+- **First seen**: 2026-06-10 (`fix: refresh dev-state before gate check`)
+- **Pattern**: pre-push hook ran `dev-state --verify` before `dev-state`. Any commit
+  made after the last refresh caused the gate to block, requiring a manual
+  `cargo xtask dev-state` before every push.
+- **Fix**: Moved refresh before verify in the hook. Order is now:
+  refresh → verify → amend → refresh.
+- **Prevention**: When a hook both generates and validates state, always generate first.
+  A gate that can only pass after manual intervention defeats the automation.
 
 ## CI / Rail Classification
 

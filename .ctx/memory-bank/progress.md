@@ -1,6 +1,6 @@
 # Progress: xtui
 
-## What Works (v0.4.5-rc.1)
+## What Works (v0.4.10)
 
 - Workspace root discovery (walks up looking for Cargo.lock)
 - 8 command sources: xtask, cargo, just, nu-script, npm, make, mise, cargo-bin
@@ -18,8 +18,10 @@
 - Integration tests: `tests/integration.rs` + `tests/sources.rs`
 - Proptest fuzz tests for parser robustness
 - Dep view (D key): direct deps + crates.io latest version, TTL cache, local dep detection
-- CI: fmt + clippy + nextest on every push/PR to main
-- Release: patch auto-bump, minor/major via cargo-rail
+- CI: fmt + clippy + nextest on every push/PR to main; develop→staging→main promotion
+- Release: patch auto-bump (with rc suffix promotion), minor/major via cargo-rail
+- Dev-state: `.ctx/dev-state.json` session metadata (session_id, hash, crate versions,
+  git state, mtime); `cargo xtask dev-state [--verify]`; pre-push gate
 
 ## In Progress
 
