@@ -1,68 +1,70 @@
 project: xtui
 id: xtui
-updated: "20260610::051231"
+updated: 2026-06-10
 items:
-  - id: ci-promote-wire
-    priority: P1
-    status: open
-    title: "Push ci-promote branch + verify promote job fires on CI"
-    description: |
-      scripts/ci-promote.nu is implemented and 11/11 fixture tests pass.
-      ci.yml promote job uses nu scripts/ci-promote.nu --remote origin.
-      Next: push develop to origin, confirm GitHub Actions promote job fires
-      and FF-merges develop → main with rail patch bump.
-    files:
-      - scripts/ci-promote.nu
-      - tests/promote.nu
-      - .github/workflows/ci.yml
-
-  - id: xstate-extract
-    priority: P2
-    status: open
-    title: "Extract xstate into nu_libs and hooklings"
-    description: |
-      scripts/xstate.nu is the canonical xstate generator. Extract reusable
-      parts into nu_libs so hooks can source them without duplicating logic.
-      Hooklings pattern: thin hooks that delegate to shared nu_libs.
-    files:
-      - scripts/xstate.nu
-      - .githooks/pre-push
-
+- id: ci-promote-wire
+  doob_uuid: null
+  name: null
+  priority: P1
+  status: open
+  title: Push ci-promote branch + verify promote job fires on CI
+  description: |
+    scripts/ci-promote.nu is implemented and 11/11 fixture tests pass.
+    ci.yml promote job uses nu scripts/ci-promote.nu --remote origin.
+    Next: push develop to origin, confirm GitHub Actions promote job fires
+    and FF-merges develop → main with rail patch bump.
+  files:
+  - scripts/ci-promote.nu
+  - tests/promote.nu
+  - .github/workflows/ci.yml
+  completed: null
+  extra: []
+- id: xstate-extract
+  doob_uuid: null
+  name: null
+  priority: P2
+  status: open
+  title: Extract xstate into nu_libs and hooklings
+  description: |
+    scripts/xstate.nu is the canonical xstate generator. Extract reusable
+    parts into nu_libs so hooks can source them without duplicating logic.
+    Hooklings pattern: thin hooks that delegate to shared nu_libs.
+  files:
+  - scripts/xstate.nu
+  - .githooks/pre-push
+  completed: null
+  extra: []
 log:
-  - date: "20260610::051231"
-    session: 3
-    summary: >-
-      Handoff cleanup: fixed date format, refreshed state file and rendered docs.
-    commits:
-      - sha: cd326ef
-        branch: develop
-
-  - date: "20260610::032439"
-    session: 2
-    summary: >-
-      Implemented CI promote pipeline: scripts/ci-promote.nu (FF-merge develop→main +
-      rail patch bump + push tags), simplified .githooks/pre-push to xstate-only,
-      fixture tests (11/11 passing), wired into ci.yml promote job. Ported
-      ci-promote logic to cargo-promote as BranchPipeline::ci_promote subcommand
-      with [promote] {sha}::{kind} | prefixed output.
-    commits:
-      - sha: a011789
-        branch: develop
-
-  - date: "20260609::000000"
-    session: 1
-    summary: >-
-      Initialized HANDOFF. dep-view plan drafted and all 6 tasks completed:
-      depview domain types, MetadataCache, MetadataFetcher, App wiring, UI panel,
-      docs. Renamed dev-state → xstate throughout.
-    commits:
-      - sha: 6cd8b5a
-        branch: develop
-      - sha: 5e14df4
-        branch: develop
-      - sha: 607249d
-        branch: develop
-      - sha: b45dbd7
-        branch: develop
-      - sha: 4d5b824
-        branch: develop
+- date: 20260610::051231
+  summary: 'Handoff cleanup: fixed date format, refreshed state file and rendered docs.'
+  commits:
+  - !Object
+    sha: cd326ef
+    branch: develop
+  session: 3
+- date: 20260610::032439
+  summary: 'Implemented CI promote pipeline: scripts/ci-promote.nu (FF-merge develop→main + rail patch bump + push tags), simplified .githooks/pre-push to xstate-only, fixture tests (11/11 passing), wired into ci.yml promote job. Ported ci-promote logic to cargo-promote as BranchPipeline::ci_promote subcommand with [promote] {sha}::{kind} | prefixed output.'
+  commits:
+  - !Object
+    sha: a011789
+    branch: develop
+  session: 2
+- date: 20260609::000000
+  summary: 'Initialized HANDOFF. dep-view plan drafted and all 6 tasks completed: depview domain types, MetadataCache, MetadataFetcher, App wiring, UI panel, docs. Renamed dev-state → xstate throughout.'
+  commits:
+  - !Object
+    sha: 6cd8b5a
+    branch: develop
+  - !Object
+    sha: 5e14df4
+    branch: develop
+  - !Object
+    sha: 607249d
+    branch: develop
+  - !Object
+    sha: b45dbd7
+    branch: develop
+  - !Object
+    sha: 4d5b824
+    branch: develop
+  session: 1

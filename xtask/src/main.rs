@@ -1,5 +1,5 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::Deserialize;
@@ -44,7 +44,7 @@ struct CopySection {
     files: Vec<String>,
 }
 
-fn copy_sources(root: &PathBuf, book_dir: &PathBuf) {
+fn copy_sources(root: &Path, book_dir: &Path) {
     let config_path = book_dir.join("copies.toml");
     let config_str = std::fs::read_to_string(&config_path)
         .unwrap_or_else(|e| panic!("failed to read {}: {e}", config_path.display()));
