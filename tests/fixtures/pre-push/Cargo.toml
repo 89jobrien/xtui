@@ -1,0 +1,8 @@
+[workspace]
+members = ["xtask"]
+
+[package]
+name = "xtui"
+version = "0.1.0"
+edition = "2024"
+resolver = "3"

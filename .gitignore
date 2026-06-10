@@ -4,12 +4,11 @@
 .ctx/*
 !.ctx/memory-bank/
 !.ctx/memory-bank/*.md
-!.ctx/HANDOFF.*.yaml
-.ctx/HANDOFF.godmode.*.yaml
-.ctx/HANDOFF.*.state.json
 !.ctx/handoff.*.config.toml.example
+.ctx/HANDOFF.*.state.json
 .ctx/HANDOFF.*.*.state.json
-.ctx/HANDOFF.hj.hj.state.json
+.ctx/HANDOFF.godmode.*.yaml
+.ctx/HANDOFF.xtui.xtui.yaml
 .ctx/.initialized
 # handoff-end
 xtask/target/
@@ -29,4 +28,3 @@ xbook/knowledge/
 xbook/meta/
 .DS_Store
 .github/.DS_Store
-.ctx/

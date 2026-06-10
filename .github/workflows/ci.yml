@@ -31,25 +31,52 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Install cargo-rail
+      - name: Install tools
         uses: taiki-e/install-action@v2
         with:
           tool: nextest,just
 
       - run: cargo install cargo-rail --locked 2>/dev/null || true
 
-      - name: version label
-        if: github.actor != 'github-actions[bot]'
-        run: |
-          MSG=$(git log -1 --format=%B)
-          if ! echo "$MSG" | grep -qE '\(\+patch |\(\+minor |\(\+major '; then
-            echo "Missing version label — commit must include (+patch x.y.z), (+minor x.y.z), or (+major x.y.z)"
-            echo "Push via local hook to add the label automatically."
-            exit 1
-          fi
-
       - name: fmt
         run: cargo fmt --all --check
 
       - name: rail run
         run: cargo rail run --profile ci --merge-base
+
+  promote:
+    name: Promote develop → main
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - run: cargo install cargo-rail --locked 2>/dev/null || true
+
+      - name: Install nushell
+        run: cargo install nu --locked 2>/dev/null || true
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Promote + patch bump
+        run: nu scripts/ci-promote.nu --remote origin

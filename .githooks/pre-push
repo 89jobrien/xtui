@@ -1,94 +1,11 @@
 #!/usr/bin/env nu
 
-# Pre-push: version bump and release automation.
-#
-# (+minor) or (+major) in the commit message → run cargo-rail release
-# Otherwise → implied +patch auto-bump
-#
-# CI will reject any push missing a version label.
+# Pre-push: verify xstate is coherent before allowing push.
+# Version bumping happens in CI (promote job: FF-merge develop → main + rail patch bump).
 
-# Refresh xstate, then verify it is coherent before allowing push
 cargo xtask xstate
 cargo xtask xstate --verify
 if ($env.LAST_EXIT_CODE != 0) {
-    print "Push blocked: xstate failed verification after refresh."
+    print "Push blocked: xstate failed verification. Run `cargo xtask xstate` to resync."
     exit 1
 }
-
-let cargo_toml = "Cargo.toml"
-
-let version = (
-    open --raw $cargo_toml
-    | lines
-    | where { |l| ($l | str starts-with "version = \"") }
-    | first
-    | str replace --regex '^version = "(.+)"$' '$1'
-)
-
-# Cross-check: Cargo.toml version must match xstate crate_versions.xtui
-let state_version = (open .ctx/xstate.json | get crate_versions.xtui)
-if $state_version != $version {
-    print $"Push blocked: version drift detected — Cargo.toml=($version) xstate=($state_version). Run `cargo xtask xstate` to resync."
-    exit 1
-}
-
-let parts = ($version | split row ".")
-let major = ($parts | get 0 | into int)
-let minor = ($parts | get 1 | into int)
-let patch_str = ($parts | get 2)
-# Detect pre-release suffix (e.g. "5-rc.1")
-let has_prerelease = ($patch_str | str contains "-")
-let patch = ($patch_str | split row "-" | first | into int)
-
-let msg = (git log -1 --format=%B | str trim)
-
-# --- Minor / major release ---
-let bump = if ($msg | str contains "(+minor)") {
-    "minor"
-} else if ($msg | str contains "(+major)") {
-    "major"
-} else {
-    ""
-}
-
-if ($bump | is-not-empty) {
-    # Rail handles version bump, changelog, commit, and tag
-    cargo rail release run xtui $"--bump=($bump)" --skip-publish --yes
-    exit 0
-}
-
-# --- Patch bump ---
-# Enforce +1 only: current patch must equal last_pushed patch (no manual version edits).
-let last_pushed = (open .ctx/xstate.json | get -o last_pushed_version | default "")
-if ($last_pushed | is-not-empty) and (not $has_prerelease) {
-    let last_patch = ($last_pushed | split row "." | get 2 | split row "-" | first | into int)
-    if $patch != $last_patch {
-        print $"Push blocked: version jumped from ($last_pushed) to ($version) — expected patch ($last_patch). Manual version edit detected."
-        exit 1
-    }
-}
-
-# If current version has a pre-release suffix, promote to clean release (strip suffix).
-# Otherwise bump the patch number.
-let new_version = if $has_prerelease {
-    $"($major).($minor).($patch)"
-} else {
-    $"($major).($minor).($patch + 1)"
-}
-
-open --raw $cargo_toml
-| str replace $"version = \"($version)\"" $"version = \"($new_version)\""
-| save --force $cargo_toml
-
-cargo generate-lockfile
-
-git add Cargo.toml Cargo.lock
-git commit --amend -m $"($msg)\n\n\(+patch ($new_version)\)"
-
-# Record the pushed version as ground truth for next push's +1 check
-open .ctx/xstate.json
-| merge {last_pushed_version: $new_version}
-| to json --indent 2
-| save --force .ctx/xstate.json
-
-cargo xtask xstate
