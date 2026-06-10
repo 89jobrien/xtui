@@ -121,6 +121,11 @@ def main [--verify] {
         dirty: ($dirty_files | is-not-empty),
         dirty_files: $dirty_files,
         crate_versions: $crate_versions,
+        last_pushed_version: (
+            if (".ctx/dev-state.json" | path exists) {
+                open .ctx/dev-state.json | get -o last_pushed_version | default ""
+            } else { "" }
+        ),
         mtime: 0,
     }
 

@@ -58,6 +58,16 @@ if ($bump | is-not-empty) {
 }
 
 # --- Patch bump ---
+# Enforce +1 only: current patch must equal last_pushed patch (no manual version edits).
+let last_pushed = (open .ctx/dev-state.json | get -o last_pushed_version | default "")
+if ($last_pushed | is-not-empty) and (not $has_prerelease) {
+    let last_patch = ($last_pushed | split row "." | get 2 | split row "-" | first | into int)
+    if $patch != $last_patch {
+        print $"Push blocked: version jumped from ($last_pushed) to ($version) — expected patch ($last_patch). Manual version edit detected."
+        exit 1
+    }
+}
+
 # If current version has a pre-release suffix, promote to clean release (strip suffix).
 # Otherwise bump the patch number.
 let new_version = if $has_prerelease {
@@ -74,5 +84,11 @@ cargo generate-lockfile
 
 git add Cargo.toml Cargo.lock
 git commit --amend -m $"($msg)\n\n\(+patch ($new_version)\)"
+
+# Record the pushed version as ground truth for next push's +1 check
+open .ctx/dev-state.json
+| merge {last_pushed_version: $new_version}
+| to json --indent 2
+| save --force .ctx/dev-state.json
 
 cargo xtask dev-state
