@@ -57,7 +57,7 @@ open --raw $cargo_toml
 
 cargo generate-lockfile
 
-nu scripts/dev-state.nu
-
 git add Cargo.toml Cargo.lock
 git commit --amend -m $"($msg)\n\n\(+patch ($new_version)\)"
+
+cargo xtask dev-state
