@@ -1,5 +1,6 @@
-generated: "2026-06-10"
-updated: "20260610.032439"
+project: xtui
+id: xtui
+updated: "20260610::051231"
 items:
   - id: ci-promote-wire
     priority: P1
@@ -28,7 +29,15 @@ items:
       - .githooks/pre-push
 
 log:
-  - date: "20260610.032439"
+  - date: "20260610::051231"
+    session: 3
+    summary: >-
+      Handoff cleanup: fixed date format, refreshed state file and rendered docs.
+    commits:
+      - sha: cd326ef
+        branch: develop
+
+  - date: "20260610::032439"
     session: 2
     summary: >-
       Implemented CI promote pipeline: scripts/ci-promote.nu (FF-merge develop→main +
@@ -39,13 +48,13 @@ log:
     commits:
       - sha: a011789
         branch: develop
-  - date: "2026-06-09"
+
+  - date: "20260609::000000"
     session: 1
     summary: >-
-      Initialized HANDOFF from work-in-progress state. Plan drafted.
-      6 P1 tasks identified for sequential implementation (dep-view). All 6 completed:
+      Initialized HANDOFF. dep-view plan drafted and all 6 tasks completed:
       depview domain types, MetadataCache, MetadataFetcher, App wiring, UI panel,
-      docs update. Rename dev-state → xstate throughout.
+      docs. Renamed dev-state → xstate throughout.
     commits:
       - sha: 6cd8b5a
         branch: develop
