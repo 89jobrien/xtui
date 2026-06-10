@@ -7,6 +7,13 @@
 #
 # CI will reject any push missing a version label.
 
+# Gate: verify dev-state is current before allowing push
+cargo xtask dev-state --verify
+if ($env.LAST_EXIT_CODE != 0) {
+    print "Push blocked: dev-state is stale or invalid. Run `cargo xtask dev-state` to refresh."
+    exit 1
+}
+
 let cargo_toml = "Cargo.toml"
 
 let version = (

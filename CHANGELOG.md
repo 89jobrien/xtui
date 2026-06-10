@@ -1,8 +1,14 @@
 ## [unreleased]
 
+### Features
+
+- Dev-state session metadata file with xtask, pre-push, and SessionStart refresh
+- Add --verify mode to dev-state with commit/branch/version checks
+
 ### Miscellaneous Tasks
 
 - *(release)* Xtui v0.4.5-rc.1
+- Route dev-state refresh through cargo xtask in hooks
 ## [nightly] - 2026-06-09
 
 ### Miscellaneous Tasks

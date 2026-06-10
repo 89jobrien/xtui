@@ -79,6 +79,23 @@ cargo build --release
 cargo xtask install
 ```
 
+## Dev Tasks
+
+```sh
+cargo xtask check            # cargo check --workspace
+cargo xtask test             # cargo test --workspace
+cargo xtask clippy           # clippy -D warnings
+cargo xtask install          # install to ~/.cargo/bin
+cargo xtask docs             # build mdbook → xbook/dist/
+cargo xtask book             # build and serve mdbook (opens browser)
+cargo xtask graph            # render cargo-rail dep graph as text tree
+cargo xtask promote-staging  # FF-merge develop → staging and push
+cargo xtask promote-main     # FF-merge staging → main and push
+cargo xtask nightly          # build release binary and upsert nightly tag
+cargo xtask dev-state        # refresh .ctx/dev-state.json (session metadata)
+cargo xtask dev-state --verify  # verify dev-state matches HEAD (exit 1 if stale)
+```
+
 ## Testing
 
 ```sh
@@ -126,7 +143,14 @@ src/
   meta_fetch.rs   MetadataFetcher port + HttpMetadataFetcher adapter
   registry.rs     Project discovery and cache (unused in v1)
 xtask/
-  src/main.rs   Dev tasks: check, test, clippy, install, docs, book
+  src/main.rs   Dev tasks: check, test, clippy, install, docs, graph, promote-*, nightly, dev-state
+scripts/
+  dev-state.nu  Generate/verify .ctx/dev-state.json
+  session-init.nu  SessionStart hook entry point (reads Claude session_id from stdin)
+.claude/
+  settings.json  Project-level Claude Code hooks (SessionStart → dev-state)
+.ctx/
+  dev-state.json  Local session metadata: session_id, hash, crate versions, git state (gitignored)
 xbook/
   book.toml     mdbook config (src = ".", build-dir = "dist")
   copies.toml   Declares which files to copy into xbook/ (supports globs)
