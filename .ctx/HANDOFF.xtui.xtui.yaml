@@ -1,77 +1,59 @@
-generated: "2026-06-09"
+generated: "2026-06-10"
+updated: "20260610.032439"
 items:
-  - id: dep-view-task-1
+  - id: ci-promote-wire
     priority: P1
     status: open
-    title: "Add depview domain types (DepInfo, DepFetchState, collect_direct_deps)"
+    title: "Push ci-promote branch + verify promote job fires on CI"
     description: |
-      Create src/depview.rs with DepInfo struct, DepFetchState enum, and
-      collect_direct_deps() function. Collect workspace deps via krates crate.
-      Add inline #[cfg(test)] tests.
-    refs:
-      - docs/plans/2026-06-09-dep-graph-view.md#task-1-add-depview-domain-types
-    assigned_to: null
+      scripts/ci-promote.nu is implemented and 11/11 fixture tests pass.
+      ci.yml promote job uses nu scripts/ci-promote.nu --remote origin.
+      Next: push develop to origin, confirm GitHub Actions promote job fires
+      and FF-merges develop → main with rail patch bump.
+    files:
+      - scripts/ci-promote.nu
+      - tests/promote.nu
+      - .github/workflows/ci.yml
 
-  - id: dep-view-task-2
-    priority: P1
+  - id: xstate-extract
+    priority: P2
     status: open
-    title: "Add MetadataCache port and RedbCache adapter"
+    title: "Extract xstate into nu_libs and hooklings"
     description: |
-      Create src/meta_cache.rs with MetadataCache port, RedbCache adapter impl,
-      CachedEntry struct with TTL tracking. Add redb = "2" to Cargo.toml.
-      Include inline #[cfg(test)] tests for roundtrip and staleness detection.
-    refs:
-      - docs/plans/2026-06-09-dep-graph-view.md#task-2-add-metadatacache-port-and-redbcache-adapter
-    assigned_to: null
-
-  - id: dep-view-task-3
-    priority: P1
-    status: open
-    title: "Add MetadataFetcher port and HttpMetadataFetcher adapter"
-    description: |
-      Create src/meta_fetch.rs with MetadataFetcher trait, HttpMetadataFetcher impl,
-      CratesIoMeta struct. Fetch crates.io latest version via ureq.
-      Parse GitHub tags to count versions behind. Add ureq = { version = "2", features = ["json"] }
-      to Cargo.toml. Include inline tests via FakeFetcher conformance pattern.
-    refs:
-      - docs/plans/2026-06-09-dep-graph-view.md#task-3-add-metadatafetcher-port-and-httpmetadatafetcher-adapter
-    assigned_to: null
-
-  - id: dep-view-task-4
-    priority: P1
-    status: open
-    title: "Wire background fetch into App (fields, methods, keybinding)"
-    description: |
-      Add show_dep_view, dep_infos, dep_scroll, dep_rx fields to App.
-      Implement toggle_dep_view(), spawn_dep_fetch(), poll_dep_results().
-      Add D keybinding to toggle view. Spawn tokio tasks per dep with cache hit/miss.
-    refs:
-      - docs/plans/2026-06-09-dep-graph-view.md#task-4-wire-background-fetch-into-app
-    assigned_to: null
-
-  - id: dep-view-task-5
-    priority: P1
-    status: open
-    title: "Render dep view panel in UI (format_dep_row, draw_dep_view)"
-    description: |
-      Add format_dep_row() and draw_dep_view() functions to ui.rs.
-      Branch in draw() to render dep panel when show_dep_view is true.
-      Add j/k scroll bindings scoped to dep view. Color-code by fetch state (Loading/Ready/Error).
-    refs:
-      - docs/plans/2026-06-09-dep-graph-view.md#task-5-render-the-dep-view-panel
-    assigned_to: null
-
-  - id: dep-view-task-6
-    priority: P1
-    status: open
-    title: "Update docs and register tasks"
-    description: |
-      Add D keybinding to README.md and ARCHITECTURE.md keybinding tables.
-      Update status bar hint string to include D:deps. Run full test suite.
-    refs:
-      - docs/plans/2026-06-09-dep-graph-view.md#task-6-update-docs-and-register-tasks
-    assigned_to: null
+      scripts/xstate.nu is the canonical xstate generator. Extract reusable
+      parts into nu_libs so hooks can source them without duplicating logic.
+      Hooklings pattern: thin hooks that delegate to shared nu_libs.
+    files:
+      - scripts/xstate.nu
+      - .githooks/pre-push
 
 log:
-  - "2026-06-09: Initialized HANDOFF from work-in-progress state. Plan drafted.
-    6 P1 tasks identified for sequential implementation. Ready for execution."
+  - date: "20260610.032439"
+    session: 2
+    summary: >-
+      Implemented CI promote pipeline: scripts/ci-promote.nu (FF-merge develop→main +
+      rail patch bump + push tags), simplified .githooks/pre-push to xstate-only,
+      fixture tests (11/11 passing), wired into ci.yml promote job. Ported
+      ci-promote logic to cargo-promote as BranchPipeline::ci_promote subcommand
+      with [promote] {sha}::{kind} | prefixed output.
+    commits:
+      - sha: a011789
+        branch: develop
+  - date: "2026-06-09"
+    session: 1
+    summary: >-
+      Initialized HANDOFF from work-in-progress state. Plan drafted.
+      6 P1 tasks identified for sequential implementation (dep-view). All 6 completed:
+      depview domain types, MetadataCache, MetadataFetcher, App wiring, UI panel,
+      docs update. Rename dev-state → xstate throughout.
+    commits:
+      - sha: 6cd8b5a
+        branch: develop
+      - sha: 5e14df4
+        branch: develop
+      - sha: 607249d
+        branch: develop
+      - sha: b45dbd7
+        branch: develop
+      - sha: 4d5b824
+        branch: develop
