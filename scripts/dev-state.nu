@@ -27,7 +27,7 @@ def main [--verify] {
         let mtime_delta = (($actual_mtime - $state.mtime) | math abs)
 
         let expected_hash = (
-            $"($state.session_id)($state.claude_session_pid)($state.project)($state.workspace_root)($state.hostname)($state.username)"
+            $"($state.session_id)($state.workspace_root)($state.hostname)($state.username)"
             | hash sha256
         )
 
@@ -58,8 +58,6 @@ def main [--verify] {
         return
     }
 
-    let session_id = ($env | get -o CLAUDE_SESSION_ID | default "")
-
     let project = (
         open --raw Cargo.toml
         | lines
@@ -71,8 +69,11 @@ def main [--verify] {
     let hostname = (sys host | get hostname)
     let username = ($env | get -o USER | default "")
 
+    let ts = (date now | format date "%y%m%d.%H%M%S")
+    let session_id = $"($project)-($nu.pid)-($ts)"
+
     let session_hash = (
-        $"($session_id)($nu.pid)($project)($workspace_root)($hostname)($username)"
+        $"($session_id)($workspace_root)($hostname)($username)"
         | hash sha256
     )
 

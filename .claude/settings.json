@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "nu scripts/session-init.nu"
+            "command": "cargo xtask dev-state"
           }
         ]
       }
