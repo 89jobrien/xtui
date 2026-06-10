@@ -1,0 +1,65 @@
+#!/usr/bin/env nu
+
+def main [msg_file: string, source?: string] {
+    # Skip for merges, squashes, and amends with existing message
+    if ($source | default "") in ["merge" "squash" "commit"] {
+        exit 0
+    }
+
+    let raw = open --raw $msg_file | str trim
+    let body = $raw | lines | where { |l| not ($l | str starts-with "#") } | str join "\n" | str trim
+    let first_line = $body | lines | first | default ""
+
+    if ($first_line | str starts-with "Merge ") or ($first_line | str starts-with "Revert \"") {
+        exit 0
+    }
+
+    let types = ["feat" "fix" "doc" "perf" "refactor" "style" "test" "chore" "ci" "revert"]
+    let t = $types | str join "|"
+    let suffix = "(" + "\\(" + "[^)]+" + "\\)" + ")?(!)?: .+"
+    let pattern = "^(" + $t + ")" + $suffix
+
+    # Already conventional — nothing to do
+    if $first_line =~ $pattern {
+        exit 0
+    }
+
+    # Pick type interactively
+    let chosen_type = (do { gum choose --header "Commit type:" ...$types } | complete)
+    if $chosen_type.exit_code != 0 {
+        print "prepare-commit-msg: aborted"
+        exit 1
+    }
+    let ctype = $chosen_type.stdout | str trim
+
+    let scope_raw = (do { gum input --placeholder "scope (optional, press enter to skip)" } | complete)
+    let scope = if $scope_raw.exit_code == 0 { $scope_raw.stdout | str trim } else { "" }
+
+    # Use existing first line as subject if non-empty, else prompt
+    let subject = if ($first_line | str length) > 0 {
+        $first_line
+    } else {
+        let s = (do { gum input --placeholder "subject" } | complete)
+        if $s.exit_code != 0 or ($s.stdout | str trim | str length) == 0 {
+            print "prepare-commit-msg: subject required"
+            exit 1
+        }
+        $s.stdout | str trim
+    }
+
+    let prefix = if ($scope | str length) > 0 {
+        $"($ctype)\(($scope)\): "
+    } else {
+        $"($ctype): "
+    }
+
+    let new_first = $"($prefix)($subject)"
+    let rest = $raw | lines | skip 1 | str join "\n"
+    let new_msg = if ($rest | str trim | str length) > 0 {
+        $"($new_first)\n($rest)"
+    } else {
+        $new_first
+    }
+
+    $new_msg | save --force $msg_file
+}

@@ -20,7 +20,9 @@ let version = (
 let parts = ($version | split row ".")
 let major = ($parts | get 0 | into int)
 let minor = ($parts | get 1 | into int)
-let patch = ($parts | get 2 | into int)
+# Strip pre-release suffix (e.g. "5-rc.1" → 5) before parsing
+let patch_str = ($parts | get 2)
+let patch = ($patch_str | split row "-" | first | into int)
 
 let msg = (git log -1 --format=%B | str trim)
 

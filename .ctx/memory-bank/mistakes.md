@@ -1,6 +1,6 @@
 ---
 version: 1
-last_updated: 2026-06-09
+last_updated: 2026-06-09 (session 2)
 next_review: 2026-06-16
 ---
 
@@ -83,9 +83,37 @@ _No patterns detected yet._
 
 _No patterns detected yet._
 
+## CI / Rail Classification
+
+### xbook/** not in infrastructure paths — triggers build+test on doc edits
+
+- **Occurrences**: 1
+- **First seen**: 2026-06-09 (session 2, doublecheck analysis)
+- **Pattern**: `xbook/**` files (SUMMARY.md, book.toml, xREADME.md) are tracked by
+  xtui via rail's `UNCERTAIN_FALLBACK`. Any edit to the book triggers a full
+  build+test run because the paths are not in `[change-detection] infrastructure`.
+- **Fix**: Added `"xbook/**"` to `infrastructure` list in `.config/rail.toml`.
+- **Prevention**: When adding doc directories to a rail workspace, explicitly add
+  them to `infrastructure` paths so they don't inherit build+test surfaces.
+
 ## Reverts
 
 _No patterns detected yet._
+
+## Gitignore / Index Drift
+
+### .gitignore entry present but file still tracked in index
+
+- **Occurrences**: 1
+- **First seen**: 2026-06-09 (`.github/.DS_Store`)
+- **Pattern**: `.gitignore` contained `.github/.DS_Store` (line 31) but the file
+  was already committed to the index. Git ignores `.gitignore` for tracked files —
+  the file showed as modified on every session start until manually removed.
+- **Fix**: `git rm --cached .github/.DS_Store`
+- **Prevention**: After adding a `.gitignore` entry for a file that was previously
+  committed, immediately follow with `git rm --cached <path>` to remove it from
+  the index. The pattern is: add gitignore entry → verify with `git ls-files <path>`
+  → if tracked, `git rm --cached` it.
 
 ## Feature Implementation
 

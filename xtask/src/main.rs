@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use serde::Deserialize;
+use std::collections::{HashMap, HashSet};
 
 fn workspace_root() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -123,9 +124,11 @@ fn book() -> ! {
 fn fix_bare_angle_brackets(content: String) -> String {
     let mut out = String::with_capacity(content.len());
     let mut in_fence = false;
+    // Track unclosed inline backtick spans across line boundaries.
+    let mut in_backtick = false;
     for line in content.lines() {
         let trimmed = line.trim_start();
-        if trimmed.starts_with("```") {
+        if !in_backtick && trimmed.starts_with("```") {
             in_fence = !in_fence;
             out.push_str(line);
             out.push('\n');
@@ -136,9 +139,11 @@ fn fix_bare_angle_brackets(content: String) -> String {
             out.push('\n');
             continue;
         }
-        // Outside fenced blocks: protect bare <word> / <word arg> sequences that are
-        // not already inside backtick spans.
-        out.push_str(&protect_angle_brackets_in_line(line));
+        // Outside fenced blocks: protect bare <word> sequences not inside backtick spans.
+        // Pass and update cross-line backtick state.
+        let (protected, new_backtick_state) = protect_angle_brackets_in_line(line, in_backtick);
+        in_backtick = new_backtick_state;
+        out.push_str(&protected);
         out.push('\n');
     }
     // Preserve trailing newline behaviour of the original
@@ -148,9 +153,9 @@ fn fix_bare_angle_brackets(content: String) -> String {
     out
 }
 
-fn protect_angle_brackets_in_line(line: &str) -> String {
+fn protect_angle_brackets_in_line(line: &str, initial_backtick: bool) -> (String, bool) {
     let mut result = String::with_capacity(line.len());
-    let mut in_backtick = false;
+    let mut in_backtick = initial_backtick;
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     while i < chars.len() {
@@ -198,7 +203,132 @@ fn protect_angle_brackets_in_line(line: &str) -> String {
         result.push(chars[i]);
         i += 1;
     }
-    result
+    (result, in_backtick)
+}
+
+fn graph() -> ! {
+    let output = Command::new("cargo")
+        .args(["rail", "graph"])
+        .output()
+        .expect("failed to run cargo rail graph — is cargo-rail installed?");
+    if !output.status.success() {
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    let v: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("cargo rail graph output was not valid JSON");
+
+    let nodes = v["nodes"].as_array().expect("missing nodes");
+    let edges = v["edges"].as_array().expect("missing edges");
+
+    // Build lookup: id → label
+    let labels: HashMap<&str, &str> = nodes
+        .iter()
+        .map(|n| (n["id"].as_str().unwrap(), n["label"].as_str().unwrap()))
+        .collect();
+
+    // Surfaces: id → label
+    let mut surfaces: Vec<(&str, &str)> = nodes
+        .iter()
+        .filter(|n| n["kind"] == "surface")
+        .map(|n| (n["id"].as_str().unwrap(), n["label"].as_str().unwrap()))
+        .collect();
+    surfaces.sort_by_key(|(_, l)| *l);
+
+    // Files owned by each crate
+    let mut crate_files: HashMap<&str, Vec<&str>> = HashMap::new();
+    for edge in edges {
+        if edge["relation"] == "owned_by" {
+            let file = edge["from"].as_str().unwrap();
+            let owner = edge["to"].as_str().unwrap();
+            if let Some(label) = labels.get(file) {
+                crate_files.entry(owner).or_default().push(label);
+            }
+        }
+    }
+
+    // Reasons enabling each surface, and which files map to each reason
+    // reason id → set of file labels (via owned_by chain)
+    let _reason_files: HashMap<&str, Vec<&str>> = {
+        let mut map: HashMap<&str, Vec<&str>> = HashMap::new();
+        for edge in edges {
+            if edge["relation"] == "owned_by" {
+                let file_id = edge["from"].as_str().unwrap();
+                if let Some(label) = labels.get(file_id) {
+                    map.entry(file_id).or_default().push(label);
+                }
+            }
+        }
+        map
+    };
+
+    // surface id → set of reason labels enabling it
+    let mut surface_reasons: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for edge in edges {
+        if edge["relation"] == "enables" {
+            let reason_id = edge["from"].as_str().unwrap();
+            let surface_id = edge["to"].as_str().unwrap();
+            if let Some(label) = labels.get(reason_id) {
+                surface_reasons.entry(surface_id).or_default().insert(label);
+            }
+        }
+    }
+
+    // Crates
+    let crates: Vec<&str> = nodes
+        .iter()
+        .filter(|n| n["kind"] == "crate")
+        .map(|n| n["id"].as_str().unwrap())
+        .collect();
+
+    for crate_id in &crates {
+        let crate_label = labels[crate_id];
+        println!("{crate_label}");
+
+        // Surfaces
+        println!("├── surfaces");
+        for (i, (surf_id, surf_label)) in surfaces.iter().enumerate() {
+            let is_last_surf = i == surfaces.len() - 1;
+            let surf_prefix = if is_last_surf {
+                "└──"
+            } else {
+                "├──"
+            };
+            let mut reasons: Vec<&&str> = surface_reasons
+                .get(surf_id)
+                .map(|s| s.iter().collect())
+                .unwrap_or_default();
+            reasons.sort();
+            let reasons_str = if reasons.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "  [{}]",
+                    reasons
+                        .iter()
+                        .map(|r| r
+                            .trim_start_matches("FILE_KIND_")
+                            .trim_start_matches("OWNER_"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+            println!("│   {surf_prefix} {surf_label}{reasons_str}");
+        }
+
+        // Files
+        let mut files = crate_files.get(crate_id).cloned().unwrap_or_default();
+        files.sort();
+        println!("└── files ({})", files.len());
+        for (i, f) in files.iter().enumerate() {
+            let is_last = i == files.len() - 1;
+            let prefix = if is_last { "└──" } else { "├──" };
+            println!("    {prefix} {f}");
+        }
+    }
+
+    std::process::exit(0);
 }
 
 fn git(args: &[&str]) -> bool {
@@ -312,6 +442,7 @@ fn main() {
         }
         Some("docs") => docs(),
         Some("book") => book(),
+        Some("graph") => graph(),
         Some("promote-staging") => promote_staging(),
         Some("promote-main") => promote_main(),
         Some("nightly") => nightly(),
@@ -323,6 +454,7 @@ fn main() {
             eprintln!("    install          Install xtui to ~/.cargo/bin");
             eprintln!("    docs             Copy sources and build the mdbook → xbook/dist/");
             eprintln!("    book             Copy sources and serve the mdbook (opens browser)");
+            eprintln!("    graph            Render cargo rail graph as a text tree");
             eprintln!("    promote-staging  FF-merge develop → staging and push  [--dry-run]");
             eprintln!("    promote-main     FF-merge staging → main and push     [--dry-run]");
             eprintln!(

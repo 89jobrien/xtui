@@ -11,9 +11,9 @@ Also shows a dep view (D key) with direct dependency metadata from crates.io.
 
 Joseph O'Brien (89jobrien). Solo project.
 
-## Current version: 0.4.1
+## Current version: 0.4.5-rc.1 (develop branch)
 
-## Done Criteria (v0.4.1 — complete)
+## Done Criteria (v0.4.5-rc.1 — complete)
 
 - Discovers commands from 8 sources via `CommandSource` trait
 - Runs selected commands with live stdout/stderr streaming

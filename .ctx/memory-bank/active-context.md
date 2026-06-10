@@ -2,17 +2,18 @@
 
 ## Current Focus
 
-Post-depview, post-release-automation state. All 6 dep-view tasks complete. CI and
-release workflows stable. No active development tasks.
+Branch: `develop`. Post-rc.1 state. CI pipeline restructured to develop→staging→main.
+No active feature development. Working on infra/config hygiene.
 
 ## Recently Completed (since last memory-bank update)
 
-- Dep view (v0.3.0): `depview.rs`, `meta_cache.rs`, `meta_fetch.rs` — full dep panel with
-  crates.io metadata, TTL cache (redb), local/path dep detection, j/k scroll, color states
-- CI workflows: `ci.yml` (fmt+clippy+nextest), `release.yml` (v* tag → GitHub release + publish)
-- Release automation: pre-push hook auto-bumps patch, cargo-rail for minor/major
-- Pre-push hook enforces +patch/+minor/+major labels in CI
-- v0.4.0 / v0.4.1 tagged and released
+- v0.4.5-rc.1 tagged on develop (`6d63169`)
+- develop→staging→main CI promotion pipeline (`6a04351`)
+- xtask commands added to CI: check/test/clippy/install/docs
+- xbook/ restructured with configurable copies and glob support (`934e1ca`)
+- `.github/.DS_Store` removed from git index (was tracked despite .gitignore entry)
+- `xbook/**` added to `rail.toml` [change-detection] infrastructure paths (was triggering
+  build+test on every book edit)
 
 ## Recent Decisions
 
@@ -22,6 +23,8 @@ release workflows stable. No active development tasks.
 - Custom base64 to avoid adding a dependency for one function
 - depview uses hexagonal ports (MetadataCache, MetadataFetcher) for testability
 - Normal deps only in dep view (not dev/build deps) — krates filter
+- CI uses `cargo rail run --profile ci --merge-base` — no explicit profile block needed,
+  `--merge-base` flag is the change-detection mechanism
 
 ## Open Questions / Gaps
 
@@ -29,7 +32,11 @@ release workflows stable. No active development tasks.
 - No config file support
 - No multiple workspace support
 
-## Dirty files (session start 2026-06-09)
+## Dirty files (session 2026-06-09)
 
-- `.ctx/HANDOFF.xtui.xtui.yaml` (modified)
-- `CHANGELOG.md` (modified)
+- `.gitignore` (modified)
+- `Cargo.lock` (modified)
+- `src/app.rs`, `src/bin_schema.rs`, `src/depview.rs`, `src/history.rs`,
+  `src/meta_cache.rs`, `src/source.rs`, `src/ui.rs` (modified — uncommitted work)
+- `xbook/SUMMARY.md`, `xbook/book.toml`, `xbook/xREADME.md` (modified)
+- `xtask/Cargo.toml`, `xtask/src/main.rs` (modified)

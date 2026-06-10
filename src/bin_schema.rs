@@ -169,6 +169,7 @@ fn probe_subcommands(binary_name: &str) -> Option<Vec<BinSubcommand>> {
 ///    are indented by 2+ spaces with at least 2 spaces before the description.
 ///
 /// Returns an empty vec if no recognisable subcommand section is found.
+// qual:allow(error_handling) reason: "Regex::new on compile-time constant patterns — panics only on programmer error, not runtime input"
 pub fn parse_help_subcommands(help: &str) -> Vec<BinSubcommand> {
     // Match section headers that signal subcommands.
     let section_re =
@@ -285,7 +286,7 @@ Commands:
     }
 
     #[test]
-    fn skip_list_is_not_empty() {
+    fn skip_help_probe_contains_known_binaries() {
         #[allow(clippy::const_is_empty)]
         let not_empty = !SKIP_HELP_PROBE.is_empty();
         assert!(not_empty);

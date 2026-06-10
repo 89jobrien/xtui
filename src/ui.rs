@@ -321,6 +321,10 @@ fn draw_status_tab(frame: &mut Frame, app: &App, area: Rect, focused: bool) {
     frame.render_widget(status_tab, area);
 }
 
+fn fmt_dep_cols(name: &str, declared: &str, col3: &str, col4: &str, col5: &str) -> String {
+    format!("{name:<30} {declared:<12} {col3:<12} {col4:<6} {col5}")
+}
+
 pub(crate) fn format_dep_row(info: &crate::depview::DepInfo) -> String {
     use crate::depview::DepFetchState;
     match &info.state {
@@ -330,10 +334,7 @@ pub(crate) fn format_dep_row(info: &crate::depview::DepInfo) -> String {
         ),
         DepFetchState::Local => {
             let repo = info.github_url.as_deref().unwrap_or("—");
-            format!(
-                "{:<30} {:<12} {:<12} {:<6} {}",
-                info.name, info.declared_version, "local", "—", repo
-            )
+            fmt_dep_cols(&info.name, &info.declared_version, "local", "—", repo)
         }
         DepFetchState::Error(e) => format!(
             "{:<30} {:<12} {:<12} err: {}",
@@ -352,10 +353,7 @@ pub(crate) fn format_dep_row(info: &crate::depview::DepInfo) -> String {
                 })
                 .unwrap_or_else(|| "—".to_string());
             let repo = info.github_url.as_deref().unwrap_or("—");
-            format!(
-                "{:<30} {:<12} {:<12} {:<6} {}",
-                info.name, info.declared_version, latest, behind, repo
-            )
+            fmt_dep_cols(&info.name, &info.declared_version, latest, &behind, repo)
         }
     }
 }
@@ -363,10 +361,7 @@ pub(crate) fn format_dep_row(info: &crate::depview::DepInfo) -> String {
 fn draw_dep_view(frame: &mut Frame, app: &App, area: Rect, focused: bool) {
     use crate::depview::DepFetchState;
 
-    let header = format!(
-        "{:<30} {:<12} {:<12} {:<6} {}",
-        "Name", "Declared", "Latest", "Behind", "Repo"
-    );
+    let header = fmt_dep_cols("Name", "Declared", "Latest", "Behind", "Repo");
 
     let mut lines: Vec<Line> = vec![
         Line::styled(

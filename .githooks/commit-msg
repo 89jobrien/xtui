@@ -1,0 +1,24 @@
+#!/usr/bin/env nu
+
+def main [msg_file: string] {
+    let raw = open --raw $msg_file | str trim
+    let body = $raw | lines | where { |l| not ($l | str starts-with "#") } | str join "\n" | str trim
+    let first_line = $body | lines | first | default ""
+
+    if ($first_line | str starts-with "Merge ") or ($first_line | str starts-with "Revert \"") {
+        exit 0
+    }
+
+    let types = ["feat" "fix" "doc" "perf" "refactor" "style" "test" "chore" "ci" "revert"]
+    let t = $types | str join "|"
+    let suffix = "(" + "\\(" + "[^)]+" + "\\)" + ")?(!)?: .+"
+    let pattern = "^(" + $t + ")" + $suffix
+
+    if not ($first_line =~ $pattern) {
+        print $"commit-msg: message does not follow Conventional Commits format."
+        print $"  Got:      ($first_line)"
+        print $"  Expected: type\(scope\): subject"
+        print $"  Types:    ($types | str join ', ')"
+        exit 1
+    }
+}

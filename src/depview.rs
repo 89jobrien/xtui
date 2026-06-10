@@ -41,12 +41,28 @@ pub fn collect_direct_deps(project: &Path) -> Vec<DepInfo> {
     let mut seen = std::collections::HashSet::new();
     let mut deps = Vec::new();
 
-    // Collect NodeIds for all workspace members
+    // Only scan the root package (the one whose Cargo.toml we were given).
+    // Excluding build-tool workspace members (e.g. xtask) keeps the dep view
+    // focused on the project's own production dependencies.
+    let root_name = {
+        let content = std::fs::read_to_string(&cargo_toml).unwrap_or_default();
+        content
+            .lines()
+            .find(|l| l.starts_with("name = "))
+            .and_then(|l| l.split('"').nth(1))
+            .unwrap_or("")
+            .to_string()
+    };
+
     let member_ids: Vec<krates::NodeId> = graph
         .workspace_members()
         .filter_map(|node| {
             if let krates::Node::Krate { id, .. } = node {
-                graph.nid_for_kid(id)
+                if id.repr.starts_with(&format!("{} ", root_name)) {
+                    graph.nid_for_kid(id)
+                } else {
+                    None
+                }
             } else {
                 None
             }

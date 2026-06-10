@@ -12,6 +12,8 @@
 - [Contributing](guide/contributing.md)
 - [Deployment & Release](guide/deployment.md)
 - [Changelog](guide/changelog.md)
+- [CI Workflow](ci-workflow.md)
+
 ---
 
 # Architecture

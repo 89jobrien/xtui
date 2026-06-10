@@ -13,6 +13,20 @@ pub struct SourceCommand {
     pub source: String,
 }
 
+impl SourceCommand {
+    pub fn new(
+        name: impl Into<String>,
+        description: Option<String>,
+        source: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description,
+            source: source.into(),
+        }
+    }
+}
+
 /// Port: any backend capable of discovering commands for a project.
 pub trait CommandSource: Send + Sync {
     fn name(&self) -> &str;
@@ -50,11 +64,7 @@ impl CommandSource for XtaskSource {
         let src = std::fs::read_to_string(&main_path)?;
         let cmds = parse_source(&src)
             .into_iter()
-            .map(|c| SourceCommand {
-                name: c.name,
-                description: c.description,
-                source: "xtask".to_string(),
-            })
+            .map(|c| SourceCommand::new(c.name, c.description, "xtask"))
             .collect();
         Ok(cmds)
     }
@@ -77,11 +87,7 @@ impl CommandSource for CargoSource {
         let fixed = ["check", "build", "test", "clippy"];
         let mut cmds: Vec<SourceCommand> = fixed
             .iter()
-            .map(|&name| SourceCommand {
-                name: name.to_string(),
-                description: Some(format!("cargo {name}")),
-                source: "cargo".to_string(),
-            })
+            .map(|&name| SourceCommand::new(name, Some(format!("cargo {name}")), "cargo"))
             .collect();
 
         // Use krates to enumerate all binary targets across workspace members.
@@ -98,14 +104,11 @@ impl CommandSource for CargoSource {
                         if target.is_bin() {
                             let name = target.name.clone();
                             if seen.insert(name.clone()) {
-                                cmds.push(SourceCommand {
-                                    name: format!("run --bin {name}"),
-                                    description: Some(format!(
-                                        "cargo run --bin {name} ({})",
-                                        krate.name
-                                    )),
-                                    source: "cargo".to_string(),
-                                });
+                                cmds.push(SourceCommand::new(
+                                    format!("run --bin {name}"),
+                                    Some(format!("cargo run --bin {name} ({})", krate.name)),
+                                    "cargo",
+                                ));
                             }
                         }
                     }
@@ -375,9 +378,10 @@ impl CommandSource for CargoBinSource {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
+                const EXECUTABLE_BITS: u32 = 0o111;
                 if entry
                     .metadata()
-                    .map(|m| m.permissions().mode() & 0o111 == 0)
+                    .map(|m| m.permissions().mode() & EXECUTABLE_BITS == 0)
                     .unwrap_or(true)
                 {
                     continue;
@@ -395,19 +399,15 @@ impl CommandSource for CargoBinSource {
 
             if schema.subcommands.is_empty() {
                 // No known subcommands — list the bare binary.
-                cmds.push(SourceCommand {
-                    name: bin_name.to_string(),
-                    description: None,
-                    source: "cargo-bin".to_string(),
-                });
+                cmds.push(SourceCommand::new(bin_name, None, "cargo-bin"));
             } else {
                 // Emit one entry per subcommand: name = "<binary> <subcmd>".
                 for sub in &schema.subcommands {
-                    cmds.push(SourceCommand {
-                        name: format!("{bin_name} {}", sub.name),
-                        description: sub.description.clone(),
-                        source: "cargo-bin".to_string(),
-                    });
+                    cmds.push(SourceCommand::new(
+                        format!("{bin_name} {}", sub.name),
+                        sub.description.clone(),
+                        "cargo-bin",
+                    ));
                 }
             }
         }

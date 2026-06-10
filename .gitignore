@@ -29,3 +29,4 @@ xbook/knowledge/
 xbook/meta/
 .DS_Store
 .github/.DS_Store
+.ctx/

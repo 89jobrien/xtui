@@ -1,6 +1,6 @@
 # Progress: xtui
 
-## What Works (v0.4.1)
+## What Works (v0.4.5-rc.1)
 
 - Workspace root discovery (walks up looking for Cargo.lock)
 - 8 command sources: xtask, cargo, just, nu-script, npm, make, mise, cargo-bin

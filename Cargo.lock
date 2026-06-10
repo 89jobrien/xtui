@@ -2732,12 +2732,13 @@ version = "0.1.0"
 dependencies = [
  "glob",
  "serde",
+ "serde_json",
  "toml 0.8.23",
 ]
 
 [[package]]
 name = "xtui"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "ansi-to-tui",
  "anyhow",

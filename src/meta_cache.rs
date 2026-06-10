@@ -64,27 +64,6 @@ impl RedbCache {
         tx.commit()?;
         Ok(())
     }
-
-    pub fn get_github_map(&self) -> Result<HashMap<String, CachedEntry>> {
-        let tx = self.db.begin_read()?;
-        let table = tx.open_table(GITHUB_TABLE)?;
-        let json = table.get(MAP_KEY)?.map(|v| v.value().to_owned());
-        match json {
-            Some(s) => Ok(serde_json::from_str(&s)?),
-            None => Ok(HashMap::new()),
-        }
-    }
-
-    pub fn set_github_map(&self, map: &HashMap<String, CachedEntry>) -> Result<()> {
-        let json = serde_json::to_string(map)?;
-        let tx = self.db.begin_write()?;
-        {
-            let mut table = tx.open_table(GITHUB_TABLE)?;
-            table.insert(MAP_KEY, json.as_str())?;
-        }
-        tx.commit()?;
-        Ok(())
-    }
 }
 
 /// Returns the path to the global metadata cache file.

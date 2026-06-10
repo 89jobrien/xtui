@@ -128,7 +128,7 @@ fn utc_timestamp() -> String {
 /// Converts days since the Unix epoch to `(year, month, day)`.
 ///
 /// Uses the algorithm from <https://howardhinnant.github.io/date_algorithms.html>.
-// qual:allow(complexity) reason: "Gregorian calendar algorithm — magic numbers are well-defined algorithm constants"
+// qual:allow(complexity,dry) reason: "Gregorian calendar algorithm — magic numbers are well-defined algorithm constants"
 fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     let z = days as i64 + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;

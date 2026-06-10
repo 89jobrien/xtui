@@ -55,4 +55,5 @@ and are skipped; they do not fail the build.
 
 ```sh
 cargo install mdbook
+cargo install mdbook-mermaid
 ```

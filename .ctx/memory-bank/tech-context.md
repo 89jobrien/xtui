@@ -35,15 +35,21 @@ cargo xtask install       # install to ~/.cargo/bin
 ```
 
 ## CI
-- `.github/workflows/ci.yml` — fmt + clippy + nextest on push/PR to main
+- `.github/workflows/ci.yml` — fmt + clippy + nextest on push to develop/staging/main + PR to main
+- `.github/workflows/promote-staging.yml` — merges develop → staging on push to develop
+- `.github/workflows/promote-main.yml` — merges staging → main on push to staging
+- `.github/workflows/nightly.yml` — nightly release build
 - `.github/workflows/release.yml` — fires on `v*` tag; git-cliff changelog,
   binary build, GitHub release, crates.io publish
+- Branch pipeline: develop → staging → main (automated promotion)
 
 ## Release
 - Patch: auto-bumped by `.githooks/pre-push` on every push to main
 - Minor/major: `cargo rail release run xtui --bump minor --skip-publish`
   then `git push github main && git push github v0.X.0`
 - Config: `.config/rail.toml`
+- `xbook/**` classified as infrastructure (does not trigger build+test)
+- `.githooks/`: pre-push, post-push, pre-commit, commit-msg, prepare-commit-msg
 
 ## Structure
 

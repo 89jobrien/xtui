@@ -451,7 +451,8 @@ impl App {
         }
         self.dep_infos = stubs.clone();
 
-        let (tx, rx) = tokio::sync::mpsc::channel(64);
+        const DEP_FETCH_CHANNEL_CAPACITY: usize = 64;
+        let (tx, rx) = tokio::sync::mpsc::channel(DEP_FETCH_CHANNEL_CAPACITY);
         self.dep_rx = Some(rx);
 
         let cache_path = crate::meta_cache::cache_path();
@@ -485,6 +486,7 @@ impl App {
         }
     }
 
+    // qual:allow(complexity) reason: "TUI event loop — inherently sequential, splitting would obscure control flow"
     pub async fn run(&mut self) -> Result<()> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
@@ -630,6 +632,7 @@ impl App {
     }
 }
 
+// qual:allow(error_handling) reason: "unwrap_or_default on cache read is intentional fallback — cache miss is not an error"
 fn fetch_dep_info(
     mut stub: crate::depview::DepInfo,
     cache_path: &std::path::Path,
