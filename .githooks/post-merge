@@ -1,0 +1,26 @@
+#!/usr/bin/env nu
+
+# post-merge: runs after git pull/merge.
+# Syncs last_pushed_version in dev-state to the merged Cargo.toml version,
+# preventing false "version drift" blocks on the next push.
+
+let dev_state_path = ".ctx/dev-state.json"
+
+if not ($dev_state_path | path exists) {
+    exit 0
+}
+
+let version = (
+    open --raw Cargo.toml
+    | lines
+    | where { |l| ($l | str starts-with "version = \"") }
+    | first
+    | str replace --regex '^version = "(.+)"$' '$1'
+)
+
+open $dev_state_path
+| merge {last_pushed_version: $version}
+| to json --indent 2
+| save --force $dev_state_path
+
+print $"dev-state: last_pushed_version synced to ($version)"
