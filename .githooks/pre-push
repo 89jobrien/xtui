@@ -20,8 +20,9 @@ let version = (
 let parts = ($version | split row ".")
 let major = ($parts | get 0 | into int)
 let minor = ($parts | get 1 | into int)
-# Strip pre-release suffix (e.g. "5-rc.1" → 5) before parsing
 let patch_str = ($parts | get 2)
+# Detect pre-release suffix (e.g. "5-rc.1")
+let has_prerelease = ($patch_str | str contains "-")
 let patch = ($patch_str | split row "-" | first | into int)
 
 let msg = (git log -1 --format=%B | str trim)
@@ -41,14 +42,22 @@ if ($bump | is-not-empty) {
     exit 0
 }
 
-# --- Implied patch bump ---
-let new_version = $"($major).($minor).($patch + 1)"
+# --- Patch bump ---
+# If current version has a pre-release suffix, promote to clean release (strip suffix).
+# Otherwise bump the patch number.
+let new_version = if $has_prerelease {
+    $"($major).($minor).($patch)"
+} else {
+    $"($major).($minor).($patch + 1)"
+}
 
 open --raw $cargo_toml
 | str replace $"version = \"($version)\"" $"version = \"($new_version)\""
 | save --force $cargo_toml
 
 cargo generate-lockfile
+
+nu scripts/dev-state.nu
 
 git add Cargo.toml Cargo.lock
 git commit --amend -m $"($msg)\n\n\(+patch ($new_version)\)"

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "nu scripts/dev-state.nu"
+          }
+        ]
+      }
+    ]
+  }
+}

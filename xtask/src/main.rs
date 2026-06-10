@@ -331,6 +331,16 @@ fn graph() -> ! {
     std::process::exit(0);
 }
 
+fn dev_state() -> ! {
+    let root = workspace_root();
+    let status = Command::new("nu")
+        .arg(root.join("scripts/dev-state.nu"))
+        .current_dir(&root)
+        .status()
+        .expect("failed to run nu — is nushell installed?");
+    std::process::exit(status.code().unwrap_or(1));
+}
+
 fn git(args: &[&str]) -> bool {
     Command::new("git")
         .args(args)
@@ -428,6 +438,7 @@ fn nightly() -> ! {
 fn main() {
     let task = env::args().nth(1);
     match task.as_deref() {
+        Some("dev-state") => dev_state(),
         Some("check") => cargo(&["check", "--workspace"]),
         Some("test") => cargo(&["test", "--workspace"]),
         Some("clippy") => cargo(&["clippy", "--workspace", "--", "-D", "warnings"]),
@@ -460,6 +471,7 @@ fn main() {
             eprintln!(
                 "    nightly          Build release binary and upsert nightly tag  [--dry-run: rail --check]"
             );
+            eprintln!("    dev-state        Refresh .ctx/dev-state.json (session metadata)");
         }
     }
 }
