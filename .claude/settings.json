@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cargo xtask dev-state"
+            "command": "cargo xtask xstate"
           }
         ]
       }

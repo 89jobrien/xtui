@@ -331,11 +331,10 @@ fn graph() -> ! {
     std::process::exit(0);
 }
 
-fn dev_state(verify: bool) -> ! {
+fn xstate(verify: bool) -> ! {
     let root = workspace_root();
     let mut cmd = Command::new("nu");
-    cmd.arg(root.join("scripts/dev-state.nu"))
-        .current_dir(&root);
+    cmd.arg(root.join("scripts/xstate.nu")).current_dir(&root);
     if verify {
         cmd.arg("--verify");
     }
@@ -442,7 +441,7 @@ fn nightly() -> ! {
 fn main() {
     let task = env::args().nth(1);
     match task.as_deref() {
-        Some("dev-state") => dev_state(env::args().any(|a| a == "--verify")),
+        Some("xstate") => xstate(env::args().any(|a| a == "--verify")),
         Some("check") => cargo(&["check", "--workspace"]),
         Some("test") => cargo(&["test", "--workspace"]),
         Some("clippy") => cargo(&["clippy", "--workspace", "--", "-D", "warnings"]),
@@ -475,10 +474,8 @@ fn main() {
             eprintln!(
                 "    nightly          Build release binary and upsert nightly tag  [--dry-run: rail --check]"
             );
-            eprintln!("    dev-state        Refresh .ctx/dev-state.json (session metadata)");
-            eprintln!(
-                "    dev-state --verify  Verify dev-state.json matches HEAD (exit 1 if stale)"
-            );
+            eprintln!("    xstate        Refresh .ctx/xstate.json (session metadata)");
+            eprintln!("    xstate --verify  Verify xstate.json matches HEAD (exit 1 if stale)");
         }
     }
 }

@@ -1,11 +1,11 @@
 #!/usr/bin/env nu
 
-# Generate or verify .ctx/dev-state.json — local dev session metadata for LLM context.
-# Usage: nu scripts/dev-state.nu [--verify]
-# Wired into: SessionStart hook, pre-push hook, or run manually via cargo xtask dev-state.
+# Generate or verify .ctx/xstate.json — local dev session metadata for LLM context.
+# Usage: nu scripts/xstate.nu [--verify]
+# Wired into: SessionStart hook, pre-push hook, or run manually via cargo xtask xstate.
 
 def main [--verify] {
-    let out = ".ctx/dev-state.json"
+    let out = ".ctx/xstate.json"
 
     if $verify {
         if not ($out | path exists) {
@@ -54,7 +54,7 @@ def main [--verify] {
             for e in $errors { print $"FAIL: ($e)" }
             exit 1
         }
-        print $"OK: dev-state is current \(commit ($head), branch ($branch), v($version)\)"
+        print $"OK: xstate is current \(commit ($head), branch ($branch), v($version)\)"
         return
     }
 
@@ -122,8 +122,8 @@ def main [--verify] {
         dirty_files: $dirty_files,
         crate_versions: $crate_versions,
         last_pushed_version: (
-            if (".ctx/dev-state.json" | path exists) {
-                open .ctx/dev-state.json | get -o last_pushed_version | default ""
+            if (".ctx/xstate.json" | path exists) {
+                open .ctx/xstate.json | get -o last_pushed_version | default ""
             } else { "" }
         ),
         mtime: 0,
@@ -133,5 +133,5 @@ def main [--verify] {
     $state | to json --indent 2 | save --force $out
     let mtime = (ls $out | get 0.modified | into int)
     $state | merge {mtime: $mtime} | to json --indent 2 | save --force $out
-    print $"dev-state written → ($out)"
+    print $"xstate written → ($out)"
 }

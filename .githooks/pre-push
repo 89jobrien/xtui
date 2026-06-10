@@ -7,11 +7,11 @@
 #
 # CI will reject any push missing a version label.
 
-# Refresh dev-state, then verify it is coherent before allowing push
-cargo xtask dev-state
-cargo xtask dev-state --verify
+# Refresh xstate, then verify it is coherent before allowing push
+cargo xtask xstate
+cargo xtask xstate --verify
 if ($env.LAST_EXIT_CODE != 0) {
-    print "Push blocked: dev-state failed verification after refresh."
+    print "Push blocked: xstate failed verification after refresh."
     exit 1
 }
 
@@ -25,10 +25,10 @@ let version = (
     | str replace --regex '^version = "(.+)"$' '$1'
 )
 
-# Cross-check: Cargo.toml version must match dev-state crate_versions.xtui
-let state_version = (open .ctx/dev-state.json | get crate_versions.xtui)
+# Cross-check: Cargo.toml version must match xstate crate_versions.xtui
+let state_version = (open .ctx/xstate.json | get crate_versions.xtui)
 if $state_version != $version {
-    print $"Push blocked: version drift detected — Cargo.toml=($version) dev-state=($state_version). Run `cargo xtask dev-state` to resync."
+    print $"Push blocked: version drift detected — Cargo.toml=($version) xstate=($state_version). Run `cargo xtask xstate` to resync."
     exit 1
 }
 
@@ -59,7 +59,7 @@ if ($bump | is-not-empty) {
 
 # --- Patch bump ---
 # Enforce +1 only: current patch must equal last_pushed patch (no manual version edits).
-let last_pushed = (open .ctx/dev-state.json | get -o last_pushed_version | default "")
+let last_pushed = (open .ctx/xstate.json | get -o last_pushed_version | default "")
 if ($last_pushed | is-not-empty) and (not $has_prerelease) {
     let last_patch = ($last_pushed | split row "." | get 2 | split row "-" | first | into int)
     if $patch != $last_patch {
@@ -86,9 +86,9 @@ git add Cargo.toml Cargo.lock
 git commit --amend -m $"($msg)\n\n\(+patch ($new_version)\)"
 
 # Record the pushed version as ground truth for next push's +1 check
-open .ctx/dev-state.json
+open .ctx/xstate.json
 | merge {last_pushed_version: $new_version}
 | to json --indent 2
-| save --force .ctx/dev-state.json
+| save --force .ctx/xstate.json
 
-cargo xtask dev-state
+cargo xtask xstate
